@@ -10,9 +10,12 @@ export const getLocalPath = (repo: string, targetBaseDir: string): string => {
   const dirs = targetPath.split('/');
   const remainingPath: string[] = [];
 
-  for (const dir of dirs) {
-    if (!remainingPath.includes(dir)) {
-      remainingPath.push(dir);
+  for (let i = 0; i < dirs.length; i++) {
+    if (
+      !remainingPath.includes(dirs[i]) ||
+      (dirs[i] === dirs[i - 1] && i === dirs.length - 1)
+    ) {
+      remainingPath.push(dirs[i]);
     }
   }
 
