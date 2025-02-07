@@ -6,12 +6,12 @@ __WARNING__ this was developed on a MacOS, so no guaranty are offered to run on 
 
 ## install
 
-1. Copy the scripts to local dir (`~/.config/script/git-mirror.ts` for example). Don't forget the `utils.ts` file.
-2. add the following alias to your `.gitconfig`:
+1. Clone the repo to a sensible place (eg: `~/.git-mirror`)
+2. Add the following alias to your `.gitconfig`:
 
 ```toml
 [alias]
-  mirror = "!Deno run --allow-run --allow-read --allow-env ~/.config/scripts/git-mirror.ts"
+  mirror = "!Deno run --allow-run --allow-read --allow-env ~/.git-mirror.ts"
 ```
 
 ## Usage
