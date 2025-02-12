@@ -19,6 +19,8 @@ interface CloneOptions {
 }
 
 const cloneAction = async (options: CloneOptions, repo: string) => {
+  console.log(chalk.bgYellow('Dry run mode ... none of the commands will actually be run.'));
+
   const localRepo = getLocalPath(
     repo,
     options.rootDir ?? `${HOME_DIR}/Projects`,
@@ -30,13 +32,13 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
   const dirAlreadyExists = await exists(localRepo);
   if (dirAlreadyExists) {
     if (options.dryRun) {
-      console.log(chalk.bgYellow(`Dry run: Fetching repository: ${localRepo}`));
+      console.log(chalk.yellow(`> Dry run: Fetching repository: ${localRepo}`));
     } else {
       await fetchRepo(localRepo);
     }
   } else {
     if (options.dryRun) {
-      console.log(chalk.bgYellow(`Dry run: Cloning repository: ${repo}`));
+      console.log(chalk.yellow(`> Dry run: Cloning repository: ${repo}`));
     } else {
       await cloneRepo(repo, localRepo);
     }
@@ -51,7 +53,7 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
   if (openVsCode) {
     if (options.dryRun) {
       console.log(
-        chalk.bgYellow(`Dry run: Opening repository in VS Code: ${localRepo}`),
+        chalk.yellow(`> Dry run: Opening repository in VS Code: ${localRepo}`),
       );
     } else {
       const vscode = await findExecutable("code");
@@ -70,7 +72,7 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 
 await new Command()
   .name("clone")
-  .version("0.1.3")
+  .version("0.1.4")
   .description("Clone/Fetch a Git repository into a 'Projects' directory")
   .arguments("<repo:string>")
   .option("-r, --root <rootDir>", "The root directory.", {
