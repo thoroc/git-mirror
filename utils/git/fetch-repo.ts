@@ -1,13 +1,13 @@
-import chalk from 'npm:chalk';
-import { findExecutable } from '../exec/find-exec.ts';
+import chalk from "npm:chalk";
+import { findExecutable } from "../exec/find-exec.ts";
 
 export const fetchRepo = async (localRepo: string): Promise<void> => {
-  const git = await findExecutable('git');
+  const git = await findExecutable("git");
 
   const pull = new Deno.Command(git, {
     cwd: localRepo,
-    args: ['fetch', 'origin'],
-    stdin: 'piped',
+    args: ["fetch", "origin"],
+    stdin: "piped",
   });
   const child = await pull.spawn();
   const status = await child.status;

@@ -1,16 +1,16 @@
-import { assertEquals } from 'jsr:@std/assert';
-import { describe, it } from 'jsr:@std/testing/bdd';
-import { getHostFromRepo } from './get-host-from-repo.ts';
+import { assertEquals } from "jsr:@std/assert";
+import { describe, it } from "jsr:@std/testing/bdd";
+import { getHostFromRepo } from "./get-host-from-repo.ts";
 
-describe('getHostFromRepo', () => {
+describe("getHostFromRepo", () => {
   const TEST_CASES = [
     {
-      repo: 'git@git-host.com:organisation/project.git',
-      expected: 'git-host',
+      repo: "git@git-host.com:organisation/project.git",
+      expected: "git-host",
     },
     {
-      repo: 'https://git-host.com/organisation/project.git',
-      expected: 'git-host',
+      repo: "https://git-host.com/organisation/project.git",
+      expected: "git-host",
     },
   ];
 

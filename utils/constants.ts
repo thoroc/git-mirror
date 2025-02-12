@@ -1,1 +1,1 @@
-export const HOME_DIR = Deno.env.get('HOME');
+export const HOME_DIR = Deno.env.get("HOME");

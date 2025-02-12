@@ -1,10 +1,10 @@
 export const runExecutable = async (
   executable: string,
-  args: string[]
+  args: string[],
 ): Promise<Deno.CommandStatus> => {
   const command = await new Deno.Command(executable, {
     args,
-    stdin: 'piped',
+    stdin: "piped",
   });
   const child = await command.spawn();
   const status = await child.status;

@@ -1,5 +1,5 @@
-import { getDirPathFromRepo } from './get-dir-path-from-repo.ts';
-import { getHostFromRepo } from './get-host-from-repo.ts';
+import { getDirPathFromRepo } from "./get-dir-path-from-repo.ts";
+import { getHostFromRepo } from "./get-host-from-repo.ts";
 
 export const getLocalPath = (repo: string, targetBaseDir: string): string => {
   const host = getHostFromRepo(repo);
@@ -7,7 +7,7 @@ export const getLocalPath = (repo: string, targetBaseDir: string): string => {
   const targetPath = `${targetBaseDir}/${host}/${dirPath}`;
 
   // find all sequential directories that exist
-  const dirs = targetPath.split('/');
+  const dirs = targetPath.split("/");
   const remainingPath: string[] = [];
 
   for (let i = 0; i < dirs.length; i++) {
@@ -19,5 +19,5 @@ export const getLocalPath = (repo: string, targetBaseDir: string): string => {
     }
   }
 
-  return remainingPath.join('/');
+  return remainingPath.join("/");
 };

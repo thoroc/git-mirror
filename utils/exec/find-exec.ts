@@ -1,10 +1,10 @@
-import chalk from 'npm:chalk';
+import chalk from "npm:chalk";
 
 export const findExecutable = async (executable: string): Promise<string> => {
   try {
-    const command = await new Deno.Command('which', {
+    const command = await new Deno.Command("which", {
       args: [executable],
-      stdout: 'piped',
+      stdout: "piped",
     });
     const { stdout } = await command.output();
 
