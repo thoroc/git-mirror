@@ -31,10 +31,7 @@ Options:
   -h, --help                     - Show this help.                                                               
   -V, --version                  - Show the version number for this program.                                     
   -r, --root          <rootDir>  - The root directory.                        (Default: "/Users/<user>/Projects")
-  -o, --open-vs-code             - Open the repository in VS Code.            (Default: false)                   
+  -o, --open-vs-code             - Open the repository in VS Code.            (Default: true)                    
+  --no-open-vs-code              - Do not open the repository in VS Code.                                        
+  --dry-run                      - Print the command that would be run. 
 ```
-
-Options:
-
-* `-o` to open VsCode (default: false)
-* `-r` to specify a different root (default: `~/Projects`)

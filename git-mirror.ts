@@ -69,13 +69,15 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 
 await new Command()
   .name('clone')
-  .version('0.1.1')
+  .version('0.1.2')
   .description('Clone a Git repository into the ~/Projects directory.')
   .arguments('<repo:string>')
   .option('-r, --root <rootDir>', 'The root directory.', {
     default: `${HOME_DIR}/Projects`,
   })
-  .option('-o, --open-vs-code', 'Open the repository in VS Code.')
+  .option('-o, --open-vs-code', 'Open the repository in VS Code.', {
+    default: true,
+  })
   .option('--no-open-vs-code', 'Do not open the repository in VS Code.')
   .option('--dry-run', 'Print the command that would be run.')
   .action(cloneAction)
