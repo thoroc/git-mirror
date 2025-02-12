@@ -11,7 +11,7 @@ __WARNING__ this was developed on a MacOS, so no guaranty are offered to run on 
 
 ```toml
 [alias]
-  mirror = "!Deno run --allow-run --allow-read --allow-env ~/.git-mirror/main.ts"
+  mirror = "!Deno run --allow-run --allow-read --allow-env ~/.git-mirror/git-mirror.ts"
 ```
 
 ## Usage

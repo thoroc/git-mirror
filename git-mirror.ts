@@ -15,6 +15,7 @@ import {
 interface CloneOptions {
   openVsCode?: boolean;
   rootDir?: string;
+  dryRun?: boolean;
 }
 
 const cloneAction = async (options: CloneOptions, repo: string) => {
@@ -28,9 +29,17 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 
   const dirAlreadyExists = await exists(localRepo);
   if (dirAlreadyExists) {
-    await fetchRepo(localRepo);
+    if (options.dryRun) {
+      console.log(chalk.bgYellow(`Dry run: Fetching repository: ${localRepo}`));
+    } else {
+      await fetchRepo(localRepo);
+    }
   } else {
-    await cloneRepo(repo, localRepo);
+    if (options.dryRun) {
+      console.log(chalk.bgYellow(`Dry run: Cloning repository: ${repo}`));
+    } else {
+      await cloneRepo(repo, localRepo);
+    }
   }
 
   const openVsCode =
@@ -38,11 +47,21 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
     (await Confirm.prompt('Open the repository in VS Code?'));
 
   if (openVsCode) {
-    const vscode = await findExecutable('code');
-    runExecutable(vscode, [localRepo]);
+    if (options.dryRun) {
+      console.log(
+        chalk.bgYellow(`Dry run: Opening repository in VS Code: ${localRepo}`)
+      );
+    } else {
+      const vscode = await findExecutable('code');
+      runExecutable(vscode, [localRepo]);
+    }
   }
 
-  console.log(`Move to the project's directory: cd ${chalk.green(localRepo)}`);
+  console.log(
+    `To move to the project's directory, please run: "cd ${chalk.green(
+      localRepo
+    )}"`
+  );
 };
 
 await new Command()
@@ -53,8 +72,7 @@ await new Command()
   .option('-r, --root <rootDir>', 'The root directory.', {
     default: `${HOME_DIR}/Projects`,
   })
-  .option('-o, --open-vs-code', 'Open the repository in VS Code.', {
-    default: false,
-  })
+  .option('-o, --open-vs-code', 'Open the repository in VS Code.')
+  .option('--dry-run', 'Print the command that would be run.')
   .action(cloneAction)
   .parse(Deno.args);
