@@ -44,7 +44,10 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 
   const openVsCode =
     options.openVsCode ??
-    (await Confirm.prompt('Open the repository in VS Code?'));
+    (await Confirm.prompt({
+      message: 'Open the repository in VS Code?',
+      default: true,
+    }));
 
   if (openVsCode) {
     if (options.dryRun) {
