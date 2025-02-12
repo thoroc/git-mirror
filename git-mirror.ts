@@ -76,6 +76,7 @@ await new Command()
     default: `${HOME_DIR}/Projects`,
   })
   .option('-o, --open-vs-code', 'Open the repository in VS Code.')
+  .option('--no-open-vs-code', 'Do not open the repository in VS Code.')
   .option('--dry-run', 'Print the command that would be run.')
   .action(cloneAction)
   .parse(Deno.args);
