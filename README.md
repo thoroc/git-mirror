@@ -18,6 +18,22 @@ __WARNING__ this was developed on a MacOS, so no guaranty are offered to run on 
 
 Call `git mirror git@github.com:owner/repo.git` will clone to `~/Projects/owner/repo`.
 
+```sh
+Usage:   clone <repo>
+Version: 0.1.1       
+
+Description:
+
+  Clone a Git repository into the ~/Projects directory.
+
+Options:
+
+  -h, --help                     - Show this help.                                                               
+  -V, --version                  - Show the version number for this program.                                     
+  -r, --root          <rootDir>  - The root directory.                        (Default: "/Users/<user>/Projects")
+  -o, --open-vs-code             - Open the repository in VS Code.            (Default: false)                   
+```
+
 Options:
 
 * `-o` to open VsCode (default: false)
