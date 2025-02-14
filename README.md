@@ -24,7 +24,7 @@ Call `git mirror git@github.com:owner/repo.git` will clone to
 
 ```sh
 Usage:   clone <repo>
-Version: 0.1.1       
+Version: 0.1.6       
 
 Description:
 
