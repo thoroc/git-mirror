@@ -1,4 +1,4 @@
-name: Deploy
+name: Main
 on:
   push:
     branches: main
@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy
+    name: Main
     runs-on: ubuntu-latest
 
     permissions:
@@ -28,6 +28,3 @@ jobs:
 
       - name: Test Deno code
         run: deno test
-
-      - name: Build step
-        run: "deno task build"
