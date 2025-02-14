@@ -1,4 +1,4 @@
-import chalk from "npm:chalk";
+import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 
 export const getDirPathFromRepo = (repo: string): string => {
   let dirPath: string;
@@ -10,7 +10,7 @@ export const getDirPathFromRepo = (repo: string): string => {
     const repoParts = repo.split("/");
     dirPath = repoParts.slice(3).join("/").replace(".git", "");
   } else {
-    console.error(chalk.bgRedBright(`Invalid Git repository URL: ${repo}`));
+    console.error(colors.bgBrightRed(`Invalid Git repository URL: ${repo}`));
     Deno.exit(1);
   }
 

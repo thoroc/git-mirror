@@ -1,4 +1,4 @@
-import chalk from "npm:chalk";
+import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 
 export const findExecutable = async (executable: string): Promise<string> => {
   try {
@@ -10,7 +10,7 @@ export const findExecutable = async (executable: string): Promise<string> => {
 
     return new TextDecoder().decode(stdout).trim();
   } catch (error) {
-    console.error(chalk.bgRedBright(`Error finding git path: ${error}`));
+    console.error(colors.bgBrightRed(`Error finding git path: ${error}`));
     Deno.exit(1);
   }
 };

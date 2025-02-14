@@ -2,7 +2,8 @@
 import { Command } from "jsr:@cliffy/command@^1.0.0-rc.7";
 import { Confirm } from "jsr:@cliffy/prompt@1.0.0-rc.7/confirm";
 import { exists } from "jsr:@std/fs";
-import chalk from "npm:chalk";
+// import colors from "npm:colors";
+import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 import { HOME_DIR } from "./utils/constants.ts";
 import {
   cloneRepo,
@@ -19,26 +20,26 @@ interface CloneOptions {
 }
 
 const cloneAction = async (options: CloneOptions, repo: string) => {
-  console.log(chalk.bgYellow('Dry run mode ... none of the commands will actually be run.'));
+  console.log(colors.bgYellow('Dry run mode ... none of the commands will actually be run.'));
 
   const localRepo = getLocalPath(
     repo,
     options.rootDir ?? `${HOME_DIR}/Projects`,
   );
   console.log(
-    `Cloning repository: ${chalk.green(repo)} to ${chalk.green(localRepo)}`,
+    `Cloning repository: ${colors.green(repo)} to ${colors.green(localRepo)}`,
   );
 
   const dirAlreadyExists = await exists(localRepo);
   if (dirAlreadyExists) {
     if (options.dryRun) {
-      console.log(chalk.yellow(`> Dry run: Fetching repository: ${localRepo}`));
+      console.log(colors.yellow(`> Dry run: Fetching repository: ${localRepo}`));
     } else {
       await fetchRepo(localRepo);
     }
   } else {
     if (options.dryRun) {
-      console.log(chalk.yellow(`> Dry run: Cloning repository: ${repo}`));
+      console.log(colors.yellow(`> Dry run: Cloning repository: ${repo}`));
     } else {
       await cloneRepo(repo, localRepo);
     }
@@ -53,7 +54,7 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
   if (openVsCode) {
     if (options.dryRun) {
       console.log(
-        chalk.yellow(`> Dry run: Opening repository in VS Code: ${localRepo}`),
+        colors.yellow(`> Dry run: Opening repository in VS Code: ${localRepo}`),
       );
     } else {
       const vscode = await findExecutable("code");
@@ -63,7 +64,7 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 
   console.log(
     `To move to the project's directory, please run: "cd ${
-      chalk.green(
+      colors.green(
         localRepo,
       )
     }"`,
@@ -72,7 +73,7 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 
 await new Command()
   .name("clone")
-  .version("0.1.4")
+  .version("0.1.5")
   .description("Clone/Fetch a Git repository into a 'Projects' directory")
   .arguments("<repo:string>")
   .option("-r, --root <rootDir>", "The root directory.", {

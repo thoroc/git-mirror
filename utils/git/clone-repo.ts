@@ -1,4 +1,4 @@
-import chalk from "npm:chalk";
+import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 import { findExecutable } from "../exec/find-exec.ts";
 
 export const cloneRepo = async (
@@ -15,10 +15,10 @@ export const cloneRepo = async (
   const status = await child.status;
 
   if (!status.success) {
-    console.error(chalk.bgRedBright(`Error cloning repository`));
+    console.error(colors.bgBrightRed(`Error cloning repository`));
   } else {
     console.log(
-      chalk.bgGreenBright(`Repository cloned successfully to ${localRepo}`),
+      colors.bgBrightGreen(`Repository cloned successfully to ${localRepo}`),
     );
   }
 };

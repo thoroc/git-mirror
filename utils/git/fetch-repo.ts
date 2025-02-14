@@ -1,4 +1,4 @@
-import chalk from "npm:chalk";
+import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 import { findExecutable } from "../exec/find-exec.ts";
 
 export const fetchRepo = async (localRepo: string): Promise<void> => {
@@ -13,8 +13,8 @@ export const fetchRepo = async (localRepo: string): Promise<void> => {
   const status = await child.status;
 
   if (!status.success) {
-    console.error(chalk.bgRedBright(`Error fetching repository`));
+    console.error(colors.bgBrightRed(`Error fetching repository`));
   } else {
-    console.log(chalk.bgGreenBright(`Repository fetching successfully`));
+    console.log(colors.bgBrightGreen(`Repository fetching successfully`));
   }
 };
