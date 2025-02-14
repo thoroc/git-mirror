@@ -20,7 +20,11 @@ interface CloneOptions {
 }
 
 const cloneAction = async (options: CloneOptions, repo: string) => {
-  console.log(colors.bgYellow('Dry run mode ... none of the commands will actually be run.'));
+  console.log(
+    colors.bgYellow(
+      "Dry run mode ... none of the commands will actually be run.",
+    ),
+  );
 
   const localRepo = getLocalPath(
     repo,
@@ -33,7 +37,9 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
   const dirAlreadyExists = await exists(localRepo);
   if (dirAlreadyExists) {
     if (options.dryRun) {
-      console.log(colors.yellow(`> Dry run: Fetching repository: ${localRepo}`));
+      console.log(
+        colors.yellow(`> Dry run: Fetching repository: ${localRepo}`),
+      );
     } else {
       await fetchRepo(localRepo);
     }
@@ -73,7 +79,7 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 
 await new Command()
   .name("clone")
-  .version("0.1.5")
+  .version("0.1.6")
   .description("Clone/Fetch a Git repository into a 'Projects' directory")
   .arguments("<repo:string>")
   .option("-r, --root <rootDir>", "The root directory.", {
