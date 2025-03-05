@@ -12,6 +12,10 @@ describe("getHostFromRepo", () => {
       repo: "https://git-host.com/organisation/project.git",
       expected: "git-host",
     },
+    {
+      repo: "git+https://git-host.com/organisation/project.git", 
+      expected: "git-host",
+    },
   ];
 
   for (const { repo, expected } of TEST_CASES) {

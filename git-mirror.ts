@@ -79,7 +79,7 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 
 await new Command()
   .name("clone")
-  .version("0.1.6")
+  .version("0.1.7")
   .description("Clone/Fetch a Git repository into a 'Projects' directory")
   .arguments("<repo:string>")
   .option("-r, --root <rootDir>", "The root directory.", {

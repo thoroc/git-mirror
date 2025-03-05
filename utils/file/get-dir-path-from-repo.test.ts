@@ -12,6 +12,10 @@ describe("getDirPathFromRepo", () => {
       repo: "https://git-host.com/organisation/project.git",
       expected: "organisation/project",
     },
+    {
+      repo: "git+https://git-host.com/organisation/project.git", 
+      expected: "organisation/project",
+    },
   ];
 
   for (const { repo, expected } of TEST_CASES) {
