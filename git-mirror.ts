@@ -1,9 +1,8 @@
 #!/usr/bin/env -S deno run --allow-env --allow-read --allow-write --allow-run
+import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 import { Command } from "jsr:@cliffy/command@^1.0.0-rc.7";
 import { Confirm } from "jsr:@cliffy/prompt@1.0.0-rc.7/confirm";
 import { exists } from "jsr:@std/fs";
-// import colors from "npm:colors";
-import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 import { HOME_DIR } from "./utils/constants.ts";
 import {
   cloneRepo,
