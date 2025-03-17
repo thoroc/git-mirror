@@ -13,7 +13,7 @@ describe("getHostFromRepo", () => {
       expected: "git-host",
     },
     {
-      repo: "git+https://git-host.com/organisation/project.git", 
+      repo: "git+https://git-host.com/organisation/project.git",
       expected: "git-host",
     },
   ];

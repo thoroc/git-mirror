@@ -13,7 +13,7 @@ describe("getDirPathFromRepo", () => {
       expected: "organisation/project",
     },
     {
-      repo: "git+https://git-host.com/organisation/project.git", 
+      repo: "git+https://git-host.com/organisation/project.git",
       expected: "organisation/project",
     },
   ];
