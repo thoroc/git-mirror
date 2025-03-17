@@ -20,11 +20,13 @@ interface CloneOptions {
 }
 
 const cloneAction = async (options: CloneOptions, repo: string) => {
-  console.log(
-    colors.bgYellow(
-      "Dry run mode ... none of the commands will actually be run.",
-    ),
-  );
+  if (options.dryRun) {
+    console.log(
+      colors.bgYellow(
+        "Dry run mode ... none of the commands will actually be run.",
+      ),
+    );
+  }
 
   const localRepo = getLocalPath(
     repo,
