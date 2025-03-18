@@ -11,7 +11,7 @@ a different OS.
 
 1. Clone the repo to a sensible place (eg: `git clone ~/.git-mirror`).
    Alternatively grab the latests
-   [release](https://github.com/thoroc/git-mirror/releases/tag/v0.1.8)
+   [release](https://github.com/thoroc/git-mirror/releases/tag/v0.1.10)
 2. Add the following alias to your `.gitconfig`:
 
 ```toml
@@ -26,7 +26,7 @@ Call `git mirror git@github.com:owner/repo.git` will clone to
 
 ```sh
 Usage:   git-mirror <repo>
-Version: 0.1.8
+Version: 0.1.10
 
 Description:
 
