@@ -8,7 +8,10 @@ on:
 jobs:
   deploy:
     name: Main
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     permissions:
       id-token: write # Needed for auth with Deno Deploy
@@ -23,8 +26,14 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Lint Deno code
+      - name: Format Deno code
         run: deno fmt --check
+
+      - name: Lint Deno code
+        run: deno lint
 
       - name: Test Deno code
         run: deno test
+
+      - name: Build Deno code
+        run: deno compile --unstable --allow-net --allow-read --allow-write --output=dist/git-mirror.ts
