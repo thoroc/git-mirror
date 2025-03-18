@@ -35,11 +35,24 @@ jobs:
 
       - name: Extract version from code
         id: get_version
-        run: echo "VERSION=$(deno eval 'import { VERSION } from "./src/version.ts"; console.log(VERSION);')" >> $GITHUB_ENV
-
-      - name: Update README with version
         run: |
-          sed -i "s/Version: .*/Version: $VERSION/" README.md
+          VERSION=$(deno eval 'import { VERSION } from "./version.ts"; console.log(VERSION);')
+          echo "Extracted version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Verify extracted version
+        run: |
+          echo "Version from env: $VERSION"
+        env:
+          VERSION: ${{ env.VERSION }}
+
+      - name: Update README with version and release URL
+        run: |
+          # Update the release link
+          sed -i "s|https://github.com/thoroc/git-mirror/releases/tag/v[0-9.]*|https://github.com/thoroc/git-mirror/releases/tag/v$VERSION|" README.md
+          
+          # Update the version in the usage section
+          sed -i "s|Version:.*|Version: $VERSION|" README.md
 
       - name: Commit README changes
         run: |
