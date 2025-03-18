@@ -23,8 +23,8 @@ Call `git mirror git@github.com:owner/repo.git` will clone to
 `~/Projects/owner/repo`.
 
 ```sh
-Usage:   clone <repo>
-Version: 0.1.6       
+Usage:   git-mirror <repo>
+Version: 0.1.8       
 
 Description:
 

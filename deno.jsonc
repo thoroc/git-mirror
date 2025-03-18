@@ -10,7 +10,7 @@
   },
   "fmt": { "exclude": [".vscode", ".github"] },
   "lint": {
-    "ignore": [
+    "exclude": [
       ".vscode",
       ".github",
       "dist",

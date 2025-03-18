@@ -79,8 +79,8 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 };
 
 await new Command()
-  .name("clone")
-  .version("0.1.7")
+  .name("git-mirror")
+  .version("0.1.8")
   .description("Clone/Fetch a Git repository into a 'Projects' directory")
   .arguments("<repo:string>")
   .option("-r, --root <rootDir>", "The root directory.", {
