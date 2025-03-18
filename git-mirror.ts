@@ -3,14 +3,15 @@ import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
 import { Command } from "jsr:@cliffy/command@^1.0.0-rc.7";
 import { Confirm } from "jsr:@cliffy/prompt@1.0.0-rc.7/confirm";
 import { exists } from "jsr:@std/fs";
-import { HOME_DIR } from "./utils/constants.ts";
+import { HOME_DIR } from "./src/constants.ts";
 import {
   cloneRepo,
   fetchRepo,
   findExecutable,
   getLocalPath,
   runExecutable,
-} from "./utils/mod.ts";
+} from "./src/mod.ts";
+import { VERSION } from "./src/version.ts";
 
 interface CloneOptions {
   openVsCode?: boolean;
@@ -80,7 +81,7 @@ const cloneAction = async (options: CloneOptions, repo: string) => {
 
 await new Command()
   .name("git-mirror")
-  .version("0.1.8")
+  .version(VERSION)
   .description("Clone/Fetch a Git repository into a 'Projects' directory")
   .arguments("<repo:string>")
   .option("-r, --root <rootDir>", "The root directory.", {
