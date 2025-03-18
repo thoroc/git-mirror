@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest] # taking out windows-latest for now: ending issue
 
     permissions:
       id-token: write # Needed for auth with Deno Deploy
