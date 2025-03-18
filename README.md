@@ -9,8 +9,9 @@ a different OS.
 
 ## install
 
-1. Clone the repo to a sensible place (eg: `git clone ~/.git-mirror`)
-   a. Alternatively grab the latests [release](https://github.com/thoroc/git-mirror/releases/tag/v0.1.8)
+1. Clone the repo to a sensible place (eg: `git clone ~/.git-mirror`).
+   Alternatively grab the latests
+   [release](https://github.com/thoroc/git-mirror/releases/tag/v0.1.8)
 2. Add the following alias to your `.gitconfig`:
 
 ```toml
