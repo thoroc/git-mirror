@@ -1,4 +1,5 @@
 name: Main
+
 on:
   push:
     branches: main
@@ -8,14 +9,11 @@ on:
 jobs:
   deploy:
     name: Main
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest] # taking out windows-latest for now: ending issue
+    runs-on: ubuntu-latest
 
     permissions:
-      id-token: write # Needed for auth with Deno Deploy
-      contents: read # Needed to clone the repository
+      id-token: write  # Needed for auth with Deno Deploy
+      contents: write  # Needed to push updates and create a release
 
     steps:
       - name: Clone repository
@@ -35,5 +33,33 @@ jobs:
       - name: Test Deno code
         run: deno test
 
+      - name: Extract version from code
+        id: get_version
+        run: echo "VERSION=$(deno eval 'import { VERSION } from "./version.ts"; console.log(VERSION);')" >> $GITHUB_ENV
+
+      - name: Update README with version
+        run: |
+          sed -i "s/Version: .*/Version: $VERSION/" README.md
+
+      - name: Commit README changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add README.md
+          git commit -m "chore: update README to version $VERSION" || echo "No changes to commit"
+          git push origin main || echo "No changes to push"
+
       - name: Build Deno code
         run: deno compile --allow-net --allow-read --allow-write --output=dist/git-mirror git-mirror.ts
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Release v${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          files: dist/git-mirror
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
