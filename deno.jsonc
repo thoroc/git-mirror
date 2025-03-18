@@ -8,5 +8,16 @@
     "@cliffy/prompt": "jsr:@cliffy/prompt@1.0.0-rc.7",
     "@std/assert": "jsr:@std/assert@1"
   },
-  "fmt": { "exclude": ["./.vscode"] }
+  "fmt": { "exclude": [".vscode", ".github"] },
+  "lint": {
+    "ignore": [
+      ".vscode",
+      ".github",
+      "dist",
+      "build",
+      "out",
+      "target",
+      "node_modules"
+    ]
+  }
 }
