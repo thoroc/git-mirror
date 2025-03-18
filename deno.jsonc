@@ -19,5 +19,6 @@
       "target",
       "node_modules"
     ]
-  }
+  },
+  "workspace": ["exec", "fs", "git", "env"]
 }

@@ -1,5 +1,5 @@
+import { findExecutable } from "@scope/exec";
 import { colors } from "jsr:@cliffy/ansi@^1.0.0-rc.7/colors";
-import { findExecutable } from "../exec/find-exec.ts";
 
 export const cloneRepo = async (
   repo: string,
