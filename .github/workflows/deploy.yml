@@ -36,7 +36,7 @@ jobs:
       - name: Extract version from code
         id: get_version
         run: |
-          VERSION=$(deno eval 'import { VERSION } from "./version.ts"; console.log(VERSION);')
+          VERSION=$(deno eval 'import { VERSION } from "./env/version.ts"; console.log(VERSION);')
           echo "Extracted version: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
