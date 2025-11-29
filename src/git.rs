@@ -25,3 +25,21 @@ pub fn clone_repo(repo: &str, local_path: &Path, dry_run: bool) -> Result<()> {
     println!("Repository cloned successfully to {}", local_path.display());
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::clone_repo;
+    use std::env;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_clone_repo_dry_run() {
+        let repo = "git@github.com:owner/repo.git";
+        let mut tmp = env::temp_dir();
+        tmp.push("git_mirror_test_dry_run");
+
+        // Ensure function returns Ok without performing network operations
+        let res = clone_repo(repo, &tmp, true);
+        assert!(res.is_ok());
+    }
+}
