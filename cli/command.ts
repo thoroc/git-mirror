@@ -11,7 +11,10 @@ export const gitMirrorCommand = new Command()
     default: `${HOME_DIR}/Projects`,
   })
   .option("-o, --open-vs-code", "Open the repository in VS Code.", {
-    default: false,
+    default: true,
   })
   .option("--dry-run", "Print the command that would be run.")
+  .option("--print-cd", "Print a shell-friendly 'code ... && cd ...' command for eval.", {
+    default: false,
+  })
   .action(cloneAction);

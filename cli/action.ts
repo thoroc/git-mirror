@@ -10,6 +10,7 @@ interface CloneOptions {
   openVsCode?: boolean;
   rootDir?: string;
   dryRun?: boolean;
+  printCd?: boolean;
 }
 
 export const cloneAction = async (options: CloneOptions, repo: string) => {
@@ -63,11 +64,15 @@ export const cloneAction = async (options: CloneOptions, repo: string) => {
     }
   }
 
-  console.log(
-    `To move to the project's directory, please run: "cd ${
-      colors.green(
-        localRepo,
-      )
-    }"`,
-  );
+  // If user requested a shell-friendly output, print a single command
+  // that opens VS Code (if requested) and then cds into the repo. This
+  // allows callers to eval the output to change directory in the parent shell.
+  if (options.printCd) {
+    const codePart = openVsCode ? `code "${localRepo}" && ` : "";
+    console.log(`${codePart}cd "${localRepo}"`);
+    return;
+  }
+
+  console.log(`To move to the project's directory, please run: "cd ${localRepo}"`);
+
 };
