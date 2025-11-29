@@ -1,6 +1,9 @@
 mod util;
+mod git;
+mod fs;
 
 use clap::Parser;
+use std::process;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -24,11 +27,21 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    match util::get_host_from_repo(&cli.repo) {
-        Ok(host) => println!("Host: {}", host),
+    let local = match fs::build_local_repo_path(&cli.root, &cli.repo) {
+        Ok(p) => p,
         Err(e) => {
-            eprintln!("Error: {}", e);
-            std::process::exit(1);
+            eprintln!("Error building local path: {}", e);
+            process::exit(1);
         }
+    };
+
+    if cli.print_cd {
+        println!("cd \"{}\"", local.display());
+        return;
+    }
+
+    if let Err(e) = git::clone_repo(&cli.repo, &local, cli.dry_run) {
+        eprintln!("Error cloning repo: {}", e);
+        process::exit(1);
     }
 }
