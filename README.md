@@ -1,78 +1,75 @@
 # git-mirror
 
-Deno script to clone a github/gitlab repo to `~/Projects` while keeping a tree
-structure close to the remote url. If the project is already present, then it'll
-fetch from the remote.
+Rust CLI to clone a GitHub/GitLab (or other Git) repo to `~/Projects` while keeping a tree
+structure close to the remote URL. If the project already exists locally the CLI can
+be used to print commands for updating or changing directory instead of cloning.
 
-**WARNING** this was developed on a MacOS, so no guaranty are offered to run on
-a different OS.
+This repository now contains a Rust implementation (in `src/`) as part of the
+`migrate/rust-skeleton` effort.
 
-## install
+## Install
 
-1. Clone the repo to a sensible place (eg: `git clone ~/.git-mirror`).
-   Alternatively grab the latests
-   [release](https://github.com/thoroc/git-mirror/releases/tag/v0.1.10)
-2. Add the following alias to your `.gitconfig`:
+Build and install locally with Cargo:
+
+```sh
+cargo install --path .
+```
+
+This installs a `git-mirror` binary in your Cargo bin directory (usually `~/.cargo/bin`).
+
+Alternatively during development run via:
+
+```sh
+cargo run -- <repo> --print-cd
+```
+
+To add a Git alias for convenience, add to your `~/.gitconfig`:
 
 ```toml
 [alias]
-  mirror = "!Deno run --allow-run --allow-read --allow-env ~/.git-mirror/git-mirror.ts"
+  mirror = "!git-mirror"
 ```
+
+After installing, you can call `git-mirror` directly (or `git mirror` if you set the alias).
 
 ## Usage
 
-Call `git mirror git@github.com:owner/repo.git` will clone to
-`~/Projects/owner/repo`.
+Example:
 
 ```sh
-Usage:   git-mirror <repo>
-Version: 0.1.10
-
-Description:
-
-  Clone a Git repository into the ~/Projects directory.
-
-Options:
-
-  -h, --help                     - Show this help.                                                               
-  -V, --version                  - Show the version number for this program.                                      
-  -r, --root          <rootDir>  - The root directory.                        (Default: "/Users/<user>/Projects")
-  -o, --open-vs-code             - Open the repository in VS Code.            (Default: true)                    
-  --no-open-vs-code              - Do not open the repository in VS Code.                                        
-  --dry-run                      - Print the command that would be run.
-  --print-cd                     - Print a shell-friendly command that opens VS Code (if enabled) and then cds into the repo.
+git-mirror git@github.com:owner/repo.git
 ```
 
-Notes and examples:
+Basic CLI options (current Rust implementation):
 
-- A program cannot change its parent shell's working directory. To have your interactive shell move into the cloned repo automatically, evaluate the CLI output in your shell.
+- `-r, --root <rootDir>`  - The root directory (default: `~/Projects`).
+- `--print-cd`            - Print a shell-friendly `cd` command pointing to the repo local path.
+- `--dry-run`             - Print the command that would be run without executing `git clone`.
 
-  - Bash / Zsh example:
+Notes:
 
-    eval "$(git-mirror git@github.com:owner/repo.git --print-cd)"
+- The CLI cannot change your parent shell's working directory. To have your interactive
+  shell move into the cloned repo automatically, evaluate the CLI output in your shell.
 
-  - Fish example:
+  Bash / Zsh example:
 
-    eval (git-mirror git@github.com:owner/repo.git --print-cd)
+  ```sh
+  eval "$(git-mirror git@github.com:owner/repo.git --print-cd)"
+  ```
 
-- If you want only the `cd` (without opening VS Code), pass `--print-cd --no-open-vs-code` (or explicitly set the `--open-vs-code` flag as desired).
+  Fish example:
 
-- You can create a shell helper function to wrap this behavior. See the separate "Shell helpers" section below for copy-paste snippets.
+  ```fish
+  eval (git-mirror git@github.com:owner/repo.git --print-cd)
+  ```
 
+- If you want only the `cd` (without opening an editor), use `--print-cd`.
 
 ## Shell helpers
 
-Below are copy-paste helper functions you can add to your shell rc file to run `git-mirror` and automatically change into the cloned repository.
+Copy-paste helper functions for your shell.
 
-- Bash (add to `~/.bashrc` or `~/.bash_profile`):
-
-```sh
-git_mirror_cd() {
-  eval "$(git-mirror "$1" --print-cd ${2:+--root "$2"})"
-}
-```
-
-- Zsh (add to `~/.zshrc`):
+Bash / Zsh:
 
 ```sh
 git_mirror_cd() {
@@ -80,7 +77,7 @@ git_mirror_cd() {
 }
 ```
 
-- Fish (add to `~/.config/fish/config.fish`):
+Fish:
 
 ```fish
 function git_mirror_cd
@@ -93,32 +90,15 @@ function git_mirror_cd
 end
 ```
 
-You can quickly append a helper to your rc file using a one-liner.
+## Notes & Migration
 
-- Append the Bash/Zsh helper to `~/.bashrc` or `~/.zshrc`:
+- This repo previously contained a Deno implementation. That TypeScript source has
+  been removed on the `migrate/rust-skeleton` branch in favor of the Rust implementation.
+- The current Rust CLI is a scaffold and implements core features: host parsing,
+  local path construction and `git clone` (with `--dry-run`).
+- Next steps: add `--open-vs-code` support, improve edge-case parsing and expand tests.
 
-```sh
-echo 'git_mirror_cd() { eval "$(git-mirror "$1" --print-cd ${2:+--root "$2"})"; }' >> ~/.bashrc
-# or for zsh
-echo 'git_mirror_cd() { eval "$(git-mirror "$1" --print-cd ${2:+--root "$2"})"; }' >> ~/.zshrc
-```
+---
 
-- Append the Fish helper to your Fish config:
-
-```sh
-cat >> ~/.config/fish/config.fish <<'FISH'
-function git_mirror_cd
-  set -l repo $argv[1]
-  set -l root_arg ''
-  if test (count $argv) -ge 2
-    set root_arg "--root $argv[2]"
-  end
-  eval (git-mirror $repo --print-cd $root_arg)
-end
-FISH
-```
-
-After adding the helper, `source` the rc file or open a new shell for it to take effect.
-
-Then call `git_mirror_cd git@github.com:owner/repo.git` to clone and change directory automatically.
-
+If you want me to publish a release, push the branch, or implement any remaining
+features (open in editor, additional flags, or packaging), tell me which and I'll continue.
