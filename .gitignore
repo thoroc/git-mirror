@@ -1,2 +1,4 @@
 dist/
 !env/target/
+# Editor configs
+.vscode/
