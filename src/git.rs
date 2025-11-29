@@ -36,7 +36,6 @@ pub fn clone_repo(repo: &str, local_path: &Path, dry_run: bool) -> Result<()> {
 mod tests {
     use super::{clone_repo, clone_repo_with_writer};
     use std::env;
-    use std::path::PathBuf;
 
     #[test]
     fn test_clone_repo_dry_run() {
