@@ -21,7 +21,7 @@ pub fn build_local_repo_path(root: &str, repo: &str) -> Result<PathBuf> {
     let host = crate::util::get_host_from_repo(repo)?;
 
     // Extract owner/repo part
-    let path_part = if let Some(idx) = repo.find("/") {
+    let path_part = if let Some(_idx) = repo.find("/") {
         // https://host/owner/repo.git -> take after host
         let parts: Vec<&str> = repo.split('/').collect();
         // owner is at index 3 for https://host/owner/repo.git
@@ -52,4 +52,62 @@ pub fn build_local_repo_path(root: &str, repo: &str) -> Result<PathBuf> {
     }
 
     Ok(local)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_local_repo_path;
+    use dirs::home_dir;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_https_path() {
+        let root = "~/Projects";
+        let repo = "https://github.com/owner/repo.git";
+        let got = build_local_repo_path(root, repo).expect("build path");
+        let mut expected = home_dir().expect("home_dir");
+        expected.push("Projects");
+        expected.push("github");
+        expected.push("owner");
+        expected.push("repo");
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn test_git_plus_https_path() {
+        let root = "~/Projects";
+        let repo = "git+https://gitlab.com/owner/repo.git";
+        let got = build_local_repo_path(root, repo).expect("build path");
+        let mut expected = home_dir().expect("home_dir");
+        expected.push("Projects");
+        expected.push("gitlab");
+        expected.push("owner");
+        expected.push("repo");
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn test_scp_style_path() {
+        let root = "~/Projects";
+        let repo = "git@bitbucket.org:owner/repo.git";
+        let got = build_local_repo_path(root, repo).expect("build path");
+        let mut expected = home_dir().expect("home_dir");
+        expected.push("Projects");
+        expected.push("bitbucket");
+        expected.push("owner");
+        expected.push("repo");
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn test_custom_root() {
+        let root = "/tmp/work";
+        let repo = "git@github.com:owner/repo.git";
+        let got = build_local_repo_path(root, repo).expect("build path");
+        let mut expected = PathBuf::from("/tmp/work");
+        expected.push("github");
+        expected.push("owner");
+        expected.push("repo");
+        assert_eq!(got, expected);
+    }
 }
