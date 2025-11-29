@@ -20,22 +20,23 @@ pub fn build_local_repo_path(root: &str, repo: &str) -> Result<PathBuf> {
     // Extract host and owner/repo
     let host = crate::util::get_host_from_repo(repo)?;
 
-    // Extract owner/repo part
-    let path_part = if let Some(_idx) = repo.find("/") {
+    // Extract owner/repo part. Handle scp-style (git@host:owner/repo.git) first
+    let path_part = if repo.contains(":") && repo.contains("@") {
+        // git@host:owner/repo.git -> take after ':'
+        let idx = repo.find(":").unwrap();
+        let after = &repo[idx + 1..];
+        let parts: Vec<&str> = after.split('/').collect();
+        if parts.len() >= 2 {
+            format!("{}/{}", parts[0], parts[1].trim_end_matches(".git"))
+        } else {
+            String::new()
+        }
+    } else if repo.contains("/") {
         // https://host/owner/repo.git -> take after host
         let parts: Vec<&str> = repo.split('/').collect();
         // owner is at index 3 for https://host/owner/repo.git
         if parts.len() >= 4 {
             format!("{}/{}", parts[3], parts[4].trim_end_matches(".git"))
-        } else {
-            String::new()
-        }
-    } else if let Some(idx) = repo.find(":") {
-        // git@host:owner/repo.git -> take after ':'
-        let after = &repo[idx + 1..];
-        let parts: Vec<&str> = after.split('/').collect();
-        if parts.len() >= 2 {
-            format!("{}/{}", parts[0], parts[1].trim_end_matches(".git"))
         } else {
             String::new()
         }
