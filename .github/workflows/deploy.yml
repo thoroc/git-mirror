@@ -1,78 +1,10 @@
-name: Main
+# Deprecated deploy workflow (Deno) — disabled
+# This workflow was for a Deno-based deployment pipeline which is no longer
+# applicable to this Rust repository. Keeping it as a disabled workflow for
+# reference; remove if you no longer need it.
 
-on:
-  push:
-    branches: main
-  pull_request:
-    branches: main
+name: Deploy (disabled)
 
-jobs:
-  deploy:
-    name: Main
-    runs-on: ubuntu-latest
+on: {}
 
-    permissions:
-      id-token: write  # Needed for auth with Deno Deploy
-      contents: write  # Needed to push updates and create a release
-
-    steps:
-      - name: Clone repository
-        uses: actions/checkout@v4
-
-      - name: Install Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Format Deno code
-        run: deno fmt --check
-
-      - name: Lint Deno code
-        run: deno lint
-
-      - name: Test Deno code
-        run: deno test
-
-      - name: Extract version from code
-        id: get_version
-        run: |
-          VERSION=$(deno eval 'import { VERSION } from "./env/version.ts"; console.log(VERSION);')
-          echo "Extracted version: $VERSION"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Verify extracted version
-        run: |
-          echo "Version from env: $VERSION"
-        env:
-          VERSION: ${{ env.VERSION }}
-
-      - name: Update README with version and release URL
-        run: |
-          # Update the release link
-          sed -i "s|https://github.com/thoroc/git-mirror/releases/tag/v[0-9.]*|https://github.com/thoroc/git-mirror/releases/tag/v$VERSION|" README.md
-          
-          # Update the version in the usage section
-          sed -i "s|Version:.*|Version: $VERSION|" README.md
-
-      - name: Commit README changes
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add README.md
-          git commit -m "chore: update README to version $VERSION" || echo "No changes to commit"
-          git push origin main || echo "No changes to push"
-
-      - name: Build Deno code
-        run: deno compile --allow-net --allow-read --allow-write --output=dist/git-mirror git-mirror.ts
-
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.VERSION }}
-          name: Release v${{ env.VERSION }}
-          draft: false
-          prerelease: false
-          files: dist/git-mirror
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+jobs: {}
