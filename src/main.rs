@@ -1,8 +1,11 @@
-mod util;
-mod git;
 mod fs;
+mod git;
+mod util;
 
 use clap::Parser;
+use dialoguer::Confirm;
+use owo_colors::OwoColorize;
+use std::env;
 use std::process;
 
 #[derive(Parser)]
@@ -22,26 +25,127 @@ struct Cli {
     /// Dry run: show commands without executing
     #[arg(long)]
     dry_run: bool,
+
+    /// Open the repo in VS Code after cloning or when it exists
+    #[arg(long)]
+    open_vs_code: bool,
+
+    /// Do not open the repo in VS Code
+    #[arg(long)]
+    no_open_vs_code: bool,
+
+    /// Disable interactive prompts (useful in CI)
+    #[arg(long)]
+    no_prompt: bool,
+
+    /// Use full host domain in local path (e.g. `github.com` instead of `github`)
+    #[arg(long)]
+    full_host: bool,
 }
 
 fn main() {
     let cli = Cli::parse();
 
-    let local = match fs::build_local_repo_path(&cli.root, &cli.repo) {
+    let local = match fs::build_local_repo_path(&cli.root, &cli.repo, cli.full_host) {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("Error building local path: {}", e);
+            eprintln!("{}", format!("Error building local path: {}", e).red());
             process::exit(1);
         }
     };
 
+    // If the user only wants the cd command, print it and exit early
     if cli.print_cd {
-        println!("cd \"{}\"", local.display());
+        println!("{}", format!("cd \"{}\"", local.display()).green());
         return;
     }
 
-    if let Err(e) = git::clone_repo(&cli.repo, &local, cli.dry_run) {
-        eprintln!("Error cloning repo: {}", e);
-        process::exit(1);
+    // Decide whether to open VS Code: explicit flags take precedence,
+    // otherwise prompt the user. If running in CI or `--no-prompt` is set, do not prompt.
+    let is_ci = env::var("CI").is_ok();
+    let decide_open = |default: bool| -> bool {
+        if cli.open_vs_code {
+            true
+        } else if cli.no_open_vs_code {
+            false
+        } else if cli.no_prompt || is_ci {
+            // Non-interactive: pick sensible default (don't open in CI)
+            default && !is_ci
+        } else {
+            Confirm::new()
+                .with_prompt("Open the repository in VS Code?")
+                .default(default)
+                .interact()
+                .unwrap_or(default)
+        }
+    };
+
+    // If the repo already exists locally, fetch updates
+    if git::repo_exists(&local) {
+        if cli.dry_run {
+            println!(
+                "{}",
+                format!("> Dry run: Fetching repository: {}", local.display()).yellow()
+            );
+        } else {
+            if let Err(e) = git::fetch_repo(&local, cli.dry_run) {
+                eprintln!("{}", format!("Error fetching repo: {}", e).red());
+                process::exit(1);
+            }
+            println!(
+                "{}",
+                format!("Fetched repository at {}", local.display()).green()
+            );
+        }
+
+        let open = decide_open(true);
+        if open {
+            if let Err(e) = git::open_in_vscode(&local, cli.dry_run) {
+                eprintln!(
+                    "{}",
+                    format!("Warning: failed to open VS Code: {}", e).yellow()
+                );
+            }
+        }
+
+        println!(
+            "{}",
+            format!(
+                "To move to the project's directory, please run: \"cd {}\"",
+                local.display()
+            )
+            .cyan()
+        );
+        return;
     }
+
+    // Repo doesn't exist: clone it
+    if let Err(e) = git::clone_repo(&cli.repo, &local, cli.dry_run) {
+        eprintln!("{}", format!("Error cloning repo: {}", e).red());
+        process::exit(1);
+    } else {
+        println!(
+            "{}",
+            format!("Repository cloned to {}", local.display()).green()
+        );
+    }
+
+    let open = decide_open(true);
+    if open {
+        if let Err(e) = git::open_in_vscode(&local, cli.dry_run) {
+            eprintln!(
+                "{}",
+                format!("Warning: failed to open VS Code: {}", e).yellow()
+            );
+        }
+    }
+
+    println!(
+        "{}",
+        format!(
+            "To move to the project's directory, please run: \"cd {}\"",
+            local.display()
+        )
+        .cyan()
+    );
 }
