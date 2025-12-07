@@ -8,10 +8,10 @@ Active workflows
 - `ci.yml` - Consolidated CI for formatting, linting (clippy) and tests. Runs on `ubuntu-latest` and `macos-latest`.
 - `release-please.yml` - Release automation using `release-please` to create release PRs and releases.
 
-Deprecated / disabled workflows
-------------------------------
-- `deploy.yml` - Previously a Deno-based deploy pipeline; now disabled and kept for reference.
-- `rust.yml` - Deprecated; consolidated into `ci.yml`.
+Removed workflows
+-----------------
+- `deploy.yml` - Removed (Deno legacy).
+- `rust.yml` - Removed (consolidated into `ci.yml`).
 
 Recommendations
 ---------------
