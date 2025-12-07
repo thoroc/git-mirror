@@ -59,7 +59,8 @@ pub fn repo_exists(local_path: &Path) -> bool {
 
 /// Build the commands to show when a repo already exists locally.
 /// If `print_cd` is true, return only the `cd` command, otherwise return `cd` + `git -C ... pull --ff-only`.
-pub fn existing_repo_commands(local_path: &Path, print_cd: bool) -> String {
+#[cfg(test)]
+fn existing_repo_commands(local_path: &Path, print_cd: bool) -> String {
     if print_cd {
         format!("cd \"{}\"", local_path.display())
     } else {

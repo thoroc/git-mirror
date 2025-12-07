@@ -38,7 +38,7 @@ pub fn build_local_repo_path(root: &str, repo: &str, full_host: bool) -> Result<
         // URL or plain host/path. Try to parse after host segment
         // For URLs like https://host/owner/sub/repo.git or plain host/path like host/owner/repo.git
         // Split on '/', drop leading scheme+host if present
-        let mut parts: Vec<&str> = repo.split('/').collect();
+        let parts: Vec<&str> = repo.split('/').collect();
         // If repo starts with a scheme like "https:", shift to get host at index 2
         if parts.len() >= 3 && parts[0].ends_with(":") {
             // e.g. ["https:", "", "github.com", "owner", "repo.git"]
