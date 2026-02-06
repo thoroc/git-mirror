@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, feat/rust-ci-readme-badges ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
