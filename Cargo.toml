@@ -1,0 +1,13 @@
+[package]
+name = "git-mirror"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.3", features = ["derive"] }
+url = "2"
+which = "4"
+anyhow = "1"
+owo-colors = "3"
+dirs = "4"
+dialoguer = "0.10"

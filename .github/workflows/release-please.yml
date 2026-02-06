@@ -1,0 +1,115 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.publish_release.outputs.release_created }}
+      tag_name: ${{ steps.publish_release.outputs.tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create or update Release PR and GitHub Release (release-please)
+        id: publish_release
+        uses: googleapis/release-please-action@v4
+        with:
+          release-type: rust
+          package-name: git-mirror
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+  build_and_upload:
+    needs: release
+    if: needs.release.outputs.release_created == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install build dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev
+
+      - name: Install build dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update || true
+          brew install openssl@1.1 || true
+
+      - name: Install build dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install openssl.light --no-progress -y || true
+        shell: powershell
+
+      - name: Build release binary
+        run: |
+          cargo build --release
+
+      - name: Install GitHub CLI (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y curl gnupg
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt-get update && sudo apt-get install -y gh
+          fi
+
+      - name: Install GitHub CLI (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          if ! command -v gh >/dev/null 2>&1; then
+            brew install gh
+          fi
+
+      - name: Install GitHub CLI (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { choco install gh -y }
+        shell: powershell
+
+      - name: Authenticate gh with token
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          echo "GitHub CLI will use GH_TOKEN environment variable for authentication"
+
+      - name: Upload release artifact (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        env:
+          TAG: ${{ needs.release.outputs.tag_name }}
+        run: |
+          FILE=./target/release/git-mirror
+          if [ ! -f "$FILE" ]; then echo "File $FILE not found"; exit 1; fi
+          gh release upload "$TAG" "$FILE" --clobber
+
+      - name: Upload release artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        env:
+          TAG: ${{ needs.release.outputs.tag_name }}
+        run: |
+          $file = Resolve-Path -Path .\target\release\git-mirror.exe
+          if (-not (Test-Path $file)) { Write-Error "File not found: $file"; exit 1 }
+          gh release upload $env:TAG $file --clobber
+        shell: powershell
