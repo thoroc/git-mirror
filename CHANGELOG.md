@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/thoroc/git-mirror/compare/v0.2.0...v0.3.0) (2026-02-06)
+
+
+### Features
+
+* add automatic Copilot review workflow ([d070d04](https://github.com/thoroc/git-mirror/commit/d070d04dab2515465484a383337d9ca34aac8e31))
+* enhance GitHub workflows and add automated installation ([fe599ea](https://github.com/thoroc/git-mirror/commit/fe599ea348bf2d01e2d152d421fe4d1005118da5))
+* enhance GitHub workflows and add automated installation script ([f516493](https://github.com/thoroc/git-mirror/commit/f51649303234893ebb55f21041a1a80d4091cfe2))
+
+
+### Bug Fixes
+
+* address PR review comments for CI/CD security and cross-platform compatibility ([f75cec3](https://github.com/thoroc/git-mirror/commit/f75cec3b0071a0683b49273e25d66f9838909635))
+
 ## [0.2.0](https://github.com/thoroc/git-mirror/compare/v0.1.10...v0.2.0) (2026-02-06)
 
 
