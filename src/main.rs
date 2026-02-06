@@ -160,4 +160,7 @@ fn main() {
         )
         .cyan()
     );
+
+    // Emit the path for use in shell aliases (e.g., mirror = "!git-mirror && cd $_")
+    println!("{}", local.display());
 }
