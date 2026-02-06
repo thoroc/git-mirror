@@ -1,6 +1,6 @@
 # git-mirror
 
-[![CI](https://github.com/thoroc/git-mirror/actions/workflows/ci.yml/badge.svg)](https://github.com/thoroc/git-mirror/actions/workflows/ci.yml) [![Rust CI](https://github.com/thoroc/git-mirror/actions/workflows/rust.yml/badge.svg)](https://github.com/thoroc/git-mirror/actions/workflows/rust.yml)
+[![CI](https://github.com/thoroc/git-mirror/actions/workflows/ci.yml/badge.svg)](https://github.com/thoroc/git-mirror/actions/workflows/ci.yml)
 
 Rust CLI to clone a GitHub/GitLab (or other Git) repo to `~/Projects` while keeping a tree
 structure close to the remote URL. If the project already exists locally the CLI can
