@@ -137,5 +137,5 @@ jobs:
           TAG: ${{ needs.release.outputs.tag_name }}
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
-          gh release upload "${{ env.TAG }}" ${{ matrix.archive_name }} ${{ matrix.archive_name }}.sha256 --clobber
+          gh release upload "${{ env.TAG }}" ${{ matrix.archive_name }} ${{ matrix.archive_name }}.sha256
         shell: bash
