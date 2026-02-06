@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/thoroc/git-mirror/compare/v0.4.4...v0.4.5) (2026-02-06)
+
+
+### Bug Fixes
+
+* create release after building assets for immutability ([#17](https://github.com/thoroc/git-mirror/issues/17)) ([a58f791](https://github.com/thoroc/git-mirror/commit/a58f79188e31693dbb249b097dd70cf37f779644))
+
 ## [0.4.4](https://github.com/thoroc/git-mirror/compare/v0.4.3...v0.4.4) (2026-02-06)
 
 
