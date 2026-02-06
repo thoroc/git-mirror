@@ -11,6 +11,47 @@ This repository now contains a Rust implementation (in `src/`) as part of the
 
 ## Install
 
+### Quick Install (Recommended)
+
+Install via the automated installation script:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/thoroc/git-mirror/main/install.sh | bash
+```
+
+This will:
+- Detect your OS and architecture automatically
+- Download the latest release binary
+- Verify the checksum for security
+- Install to `~/.local/bin/git-mirror` (or custom location via `INSTALL_DIR` env var)
+
+Custom installation directory:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/thoroc/git-mirror/main/install.sh | INSTALL_DIR=/usr/local/bin bash
+```
+
+### Manual Installation
+
+Download the appropriate binary for your system from the [latest release](https://github.com/thoroc/git-mirror/releases/latest):
+
+- **Linux x86_64**: `git-mirror-linux-x86_64.tar.gz`
+- **Linux ARM64**: `git-mirror-linux-aarch64.tar.gz`
+- **macOS Intel**: `git-mirror-macos-x86_64.tar.gz`
+- **macOS Apple Silicon**: `git-mirror-macos-aarch64.tar.gz`
+- **Windows**: `git-mirror-windows-x86_64.zip`
+
+Extract and move to a directory in your `PATH`:
+
+```sh
+# Linux/macOS example
+tar -xzf git-mirror-*.tar.gz
+mv git-mirror ~/.local/bin/
+chmod +x ~/.local/bin/git-mirror
+```
+
+### Build from Source
+
 Build and install locally with Cargo:
 
 ```sh
@@ -24,6 +65,8 @@ Alternatively during development run via:
 ```sh
 cargo run -- <repo> --print-cd
 ```
+
+### Git Alias (Optional)
 
 To add a Git alias for convenience, add to your `~/.gitconfig`:
 
