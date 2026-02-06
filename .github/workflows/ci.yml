@@ -18,11 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo registry, git and target
         uses: actions/cache@v4
