@@ -1,10 +1,23 @@
 # git-mirror
 
 [![CI](https://github.com/thoroc/git-mirror/actions/workflows/ci.yml/badge.svg)](https://github.com/thoroc/git-mirror/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-0.4.0-blue)](https://github.com/thoroc/git-mirror/releases)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Rust](https://img.shields.io/badge/built%20with-Rust-orange)](https://www.rust-lang.org/)
 
 Rust CLI to clone a GitHub/GitLab (or other Git) repo to `~/Projects` while keeping a tree
 structure close to the remote URL. If the project already exists locally the CLI can
 be used to print commands for updating or changing directory instead of cloning.
+
+## Why use git-mirror?
+
+Organizing cloned repositories consistently is tedious. git-mirror automates this by:
+
+- **Smart directory structure** - Mirrors the remote URL structure locally (`~/Projects/github/owner/repo`)
+- **Works with any Git host** - GitHub, GitLab, Bitbucket, or self-hosted instances
+- **Shell integration** - Print `cd` commands to jump straight into cloned repos
+- **VS Code ready** - Optionally open repos in VS Code immediately after cloning
+- **Fast and lightweight** - Written in Rust for maximum performance
 
 ## Install
 
