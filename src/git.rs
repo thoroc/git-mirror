@@ -95,7 +95,6 @@ pub fn fetch_repo(local_path: &Path, dry_run: bool) -> Result<()> {
         anyhow::bail!("git fetch failed with status: {}", status);
     }
 
-    println!("Fetched repository at {}", local_path.display());
     Ok(())
 }
 
