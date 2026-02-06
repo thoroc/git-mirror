@@ -7,7 +7,7 @@ structure close to the remote URL. If the project already exists locally the CLI
 be used to print commands for updating or changing directory instead of cloning.
 
 This repository now contains a Rust implementation (in `src/`) as part of the
-`migrate/rust-skeleton` effort.
+`feat/rust-ci-readme-badges` effort.
 
 ## Install
 
@@ -142,7 +142,7 @@ function Git-Mirror-Cd {
 ## Notes & Migration
 
 - This repo previously contained a Deno implementation. That TypeScript source has
-  been removed on the `migrate/rust-skeleton` branch in favor of the Rust implementation.
+  been removed on the `feat/rust-ci-readme-badges` branch in favor of the Rust implementation.
 - The current Rust CLI is a scaffold and implements core features: host parsing,
   local path construction and `git clone` (with `--dry-run`).
 - Next steps: improve edge-case parsing and expand tests.

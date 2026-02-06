@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, migrate/rust-skeleton ]
+    branches: [ main, feat/rust-ci-readme-badges ]
   pull_request:
     branches: [ main ]
 
