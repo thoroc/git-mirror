@@ -110,12 +110,12 @@ fn open_in_vscode_with_writer<W: Write>(
     dry_run: bool,
     writer: &mut W,
 ) -> Result<()> {
-    let code = which("code").context("`code` executable not found in PATH")?;
-
     if dry_run {
         writeln!(writer, "Dry run: open VS Code at {}", local_path.display())?;
         return Ok(());
     }
+
+    let code = which("code").context("`code` executable not found in PATH")?;
 
     let status = Command::new(code)
         .arg(local_path)
