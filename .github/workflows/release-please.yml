@@ -133,9 +133,9 @@ jobs:
 
       - name: Authenticate gh with token
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
-          printf "%s" "$GITHUB_TOKEN" | gh auth login --with-token
+          echo "GitHub CLI will use GH_TOKEN environment variable for authentication"
 
       - name: Upload release artifact (Linux/macOS)
         if: matrix.os != 'windows-latest'
