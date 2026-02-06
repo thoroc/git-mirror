@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/thoroc/git-mirror/compare/v0.3.0...v0.4.0) (2026-02-06)
+
+
+### Features
+
+* emit cloned repo path for git alias integration ([01c65f5](https://github.com/thoroc/git-mirror/commit/01c65f541b85e1ab98157d1e4af26f7cff8c3052))
+* emit cloned repo path for git alias integration ([10a4611](https://github.com/thoroc/git-mirror/commit/10a46111d5a4b424570471b23513e542edf03d27))
+
 ## [0.3.0](https://github.com/thoroc/git-mirror/compare/v0.2.0...v0.3.0) (2026-02-06)
 
 
