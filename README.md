@@ -6,9 +6,6 @@ Rust CLI to clone a GitHub/GitLab (or other Git) repo to `~/Projects` while keep
 structure close to the remote URL. If the project already exists locally the CLI can
 be used to print commands for updating or changing directory instead of cloning.
 
-This repository now contains a Rust implementation (in `src/`) as part of the
-`feat/rust-ci-readme-badges` effort.
-
 ## Install
 
 ### Quick Install (Recommended)
@@ -111,16 +108,20 @@ eval "$(git-mirror git@github.com:owner/repo.git --print-cd)"
 
 ## Usage
 
-Basic CLI options (current Rust implementation):
+Basic CLI options:
 
-- `-r, --root <rootDir>`  - The root directory (default: `~/Projects`).
+- `-r, --root <ROOT>`     - Root directory where projects are stored (default: `~/Projects`).
   Example: `git-mirror --root ~/Work git@github.com:owner/repo.git`
 - `--print-cd`            - Print a shell-friendly `cd` command pointing to the repo local path.
   Example: `git-mirror --print-cd git@github.com:owner/repo.git`
-- `--dry-run`             - Print the command that would be run without executing `git clone`.
+- `--dry-run`             - Dry run: show commands without executing.
   Example: `git-mirror --dry-run git@github.com:owner/repo.git`
 - `--open-vs-code`        - Open the repo in VS Code after cloning or when it already exists.
   Example: `git-mirror --open-vs-code git@github.com:owner/repo.git`
+- `--no-open-vs-code`     - Do not open the repo in VS Code.
+  Example: `git-mirror --no-open-vs-code git@github.com:owner/repo.git`
+- `--no-prompt`           - Disable interactive prompts (useful in CI).
+  Example: `git-mirror --no-prompt git@github.com:owner/repo.git`
 - `--full-host`           - Use the full host domain in the local path (e.g. `github.com` instead of `github`).
   Example: `git-mirror --full-host git@github.com:owner/repo.git`
 
@@ -184,11 +185,8 @@ function Git-Mirror-Cd {
 
 ## Notes & Migration
 
-- This repo previously contained a Deno implementation. That TypeScript source has
-  been removed on the `feat/rust-ci-readme-badges` branch in favor of the Rust implementation.
-- The current Rust CLI is a scaffold and implements core features: host parsing,
-  local path construction and `git clone` (with `--dry-run`).
-- Next steps: improve edge-case parsing and expand tests.
+- This repo previously contained a Deno/TypeScript implementation, which has been replaced with the current Rust implementation.
+- The Rust CLI implements core features: host parsing, local path construction, `git clone`, VS Code integration, and interactive prompts.
 
 ### Migration notes (host-name change)
 
