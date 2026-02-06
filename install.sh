@@ -2,7 +2,7 @@
 # Installation script for git-mirror
 # Usage: curl -fsSL https://raw.githubusercontent.com/thoroc/git-mirror/main/install.sh | bash
 
-set -e
+set -euo pipefail
 
 # Configuration
 REPO="thoroc/git-mirror"
