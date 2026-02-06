@@ -171,9 +171,6 @@ symlinks), say so and I can implement it.
 
 ---
 
-If you want me to publish a release, push the branch, or implement any remaining
-features (open in editor, additional flags, or packaging), tell me which and I'll continue.
-
 Developer and contributor information has moved to `CONTRIBUTING.md`.
 
 See `CONTRIBUTING.md` for release automation, contributing, and troubleshooting details.
