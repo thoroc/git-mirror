@@ -155,9 +155,15 @@ jobs:
           path: ./artifacts
           merge-multiple: true
 
+      - name: Extract version from Cargo.toml
+        id: get_version
+        run: |
+          VERSION=$(grep -E '^version\s*=' Cargo.toml | head -n1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
       - name: Create release and upload assets
         env:
-          VERSION: ${{ needs.release.outputs.version }}
+          VERSION: ${{ steps.get_version.outputs.version }}
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
           cd ./artifacts
