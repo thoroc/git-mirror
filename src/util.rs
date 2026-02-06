@@ -122,4 +122,25 @@ mod tests {
         let repo = "not-a-repo";
         assert!(get_host_from_repo(repo).is_err());
     }
+
+    #[test]
+    fn test_get_host_from_repo_full_https() {
+        let repo = "https://github.com/owner/repo.git";
+        let h = super::get_host_from_repo_full(repo).expect("should parse");
+        assert_eq!(h, "github.com");
+    }
+
+    #[test]
+    fn test_get_host_from_repo_full_scp() {
+        let repo = "git@gitlab.com:owner/repo.git";
+        let h = super::get_host_from_repo_full(repo).expect("should parse");
+        assert_eq!(h, "gitlab.com");
+    }
+
+    #[test]
+    fn test_get_host_from_repo_full_subdomain() {
+        let repo = "https://git.example.com/owner/repo.git";
+        let h = super::get_host_from_repo_full(repo).expect("should parse");
+        assert_eq!(h, "git.example.com");
+    }
 }
