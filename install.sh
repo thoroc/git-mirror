@@ -160,6 +160,9 @@ main() {
     log_info "git-mirror has been installed to: ${INSTALL_DIR}/${BINARY_NAME}"
     log_info ""
 
+    # Configure git alias
+    configure_git_alias
+
     # Check if install directory is in PATH
     if [[ ":$PATH:" != *":${INSTALL_DIR}:"* ]]; then
         log_warn "Warning: ${INSTALL_DIR} is not in your PATH"
@@ -174,6 +177,34 @@ main() {
     else
         log_info "Run 'git-mirror --help' to get started!"
     fi
+}
+
+# Configure git alias for mirror command
+configure_git_alias() {
+    log_info "Configuring git alias..."
+
+    # Define the alias command
+    ALIAS_CMD='!git-mirror "$@" && cd "$_"'
+
+    # Check if mirror alias already exists
+    EXISTING_ALIAS=$(git config --global alias.mirror 2>/dev/null || echo "")
+
+    if [ -n "$EXISTING_ALIAS" ]; then
+        log_warn "Git alias 'mirror' already exists: $EXISTING_ALIAS"
+        log_info "Would you like to update it to: $ALIAS_CMD"
+        log_info "To update manually, run: git config --global alias.mirror '$ALIAS_CMD'"
+    else
+        # Add the alias
+        if git config --global alias.mirror "$ALIAS_CMD"; then
+            log_info "✓ Git alias 'mirror' configured successfully!"
+            log_info "You can now use: git mirror <repo-url>"
+        else
+            log_warn "Failed to configure git alias. You can add it manually:"
+            log_info "  git config --global alias.mirror '$ALIAS_CMD'"
+        fi
+    fi
+
+    log_info ""
 }
 
 main "$@"
