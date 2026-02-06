@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       paths_released: ${{ steps.publish_release.outputs.paths_released }}
-      tag_name: v${{ steps.publish_release.outputs.version }}
+      version: ${{ steps.publish_release.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -154,11 +154,12 @@ jobs:
 
       - name: Create release and upload assets
         env:
-          TAG: ${{ needs.release.outputs.tag_name }}
+          VERSION: ${{ needs.release.outputs.version }}
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
           cd ./artifacts
-          gh release create "${{ env.TAG }}" \
-            --title "Release ${{ env.TAG }}" \
+          TAG="v${VERSION}"
+          gh release create "${TAG}" \
+            --title "Release ${TAG}" \
             --generate-notes \
             *.tar.gz *.zip *.sha256
