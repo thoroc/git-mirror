@@ -22,13 +22,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create or update Release PR and GitHub Release (release-please)
+      - name: Create or update Release PR (release-please)
         id: publish_release
         uses: googleapis/release-please-action@v4
         with:
           release-type: rust
           package-name: git-mirror
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          skip-github-release: true
 
   build_and_upload:
     needs: release
@@ -132,10 +133,32 @@ jobs:
         run: |
           echo "GitHub CLI will use GH_TOKEN environment variable for authentication"
 
-      - name: Upload release artifacts
+      - name: Upload artifacts to workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive_name }}
+          path: |
+            ${{ matrix.archive_name }}
+            ${{ matrix.archive_name }}.sha256
+
+  create_release:
+    needs: [release, build_and_upload]
+    if: needs.release.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: Create release and upload assets
         env:
           TAG: ${{ needs.release.outputs.tag_name }}
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
-          gh release upload "${{ env.TAG }}" ${{ matrix.archive_name }} ${{ matrix.archive_name }}.sha256
-        shell: bash
+          cd ./artifacts
+          gh release create "${{ env.TAG }}" \
+            --title "Release ${{ env.TAG }}" \
+            --generate-notes \
+            *.tar.gz *.zip *.sha256
