@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/thoroc/git-mirror/compare/v0.4.1...v0.4.2) (2026-02-06)
+
+
+### Bug Fixes
+
+* add GH_TOKEN to upload release artifacts step ([#11](https://github.com/thoroc/git-mirror/issues/11)) ([e55c24e](https://github.com/thoroc/git-mirror/commit/e55c24eea41a4c140cc62d4c9bbdfc4bb0234ccf))
+
 ## [0.4.1](https://github.com/thoroc/git-mirror/compare/v0.4.0...v0.4.1) (2026-02-06)
 
 
