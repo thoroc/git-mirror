@@ -17,7 +17,24 @@ permissions:
   security-events: write
 
 jobs:
+  check-label:
+    runs-on: ubuntu-latest
+    outputs:
+      skip-ci: ${{ steps.check.outputs.skip-ci }}
+    steps:
+      - name: Check for autorelease label
+        id: check
+        run: |
+          if ${{ contains(github.event.pull_request.labels.*.name, 'autorelease: pending') }}; then
+            echo "skip-ci=true" >> $GITHUB_OUTPUT
+            echo "Skipping CI for autorelease PR"
+          else
+            echo "skip-ci=false" >> $GITHUB_OUTPUT
+          fi
+
   build:
+    needs: check-label
+    if: needs.check-label.outputs.skip-ci != 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -54,6 +71,8 @@ jobs:
         run: cargo test --workspace --all-features -- --nocapture
 
   security-audit:
+    needs: check-label
+    if: needs.check-label.outputs.skip-ci != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +87,8 @@ jobs:
         run: cargo audit
 
   coverage:
+    needs: check-label
+    if: needs.check-label.outputs.skip-ci != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,6 +111,8 @@ jobs:
           fail_ci_if_error: false
 
   dependency-scan:
+    needs: check-label
+    if: needs.check-label.outputs.skip-ci != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
