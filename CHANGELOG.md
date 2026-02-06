@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.1](https://github.com/thoroc/git-mirror/compare/v0.4.0...v0.4.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* **ci:** correct release-please output variable name ([2675413](https://github.com/thoroc/git-mirror/commit/267541380c12004f2f2dd34010d84268259b877b))
+* **ci:** correct release-please output variable name ([7978c97](https://github.com/thoroc/git-mirror/commit/7978c9722f64d7544a0ca5ac0337778661e0f3f9))
+
 ## [0.4.0](https://github.com/thoroc/git-mirror/compare/v0.3.0...v0.4.0) (2026-02-06)
 
 
