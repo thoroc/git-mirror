@@ -3,3 +3,7 @@ target/
 !env/target/
 # Editor configs
 .vscode/
+# opencode
+.context
+.opencode
+opencode.json

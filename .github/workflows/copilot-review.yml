@@ -1,0 +1,29 @@
+name: Copilot Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  copilot-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request Copilot Review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr review ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --comment \
+            --body "@github-copilot Please review this PR focusing on:
+          1. Code quality, best practices, and potential bugs
+          2. Security vulnerabilities and unsafe patterns
+          3. Performance implications
+          4. Documentation accuracy and completeness
+          5. Test coverage and edge cases
+          
+          Please provide specific, actionable feedback."
