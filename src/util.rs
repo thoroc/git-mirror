@@ -1,6 +1,20 @@
 use anyhow::{anyhow, Result};
 use url::Url;
 
+/// Sanitize a URL for error messages by removing any embedded credentials
+fn sanitize_url(repo: &str) -> String {
+    // Try to parse as URL and remove credentials
+    if let Ok(mut url) = Url::parse(repo) {
+        if url.username() != "" || url.password().is_some() {
+            let _ = url.set_username("");
+            let _ = url.set_password(None);
+            return url.to_string();
+        }
+    }
+    // If not a parseable URL or no credentials, return as-is
+    repo.to_string()
+}
+
 /// Return the repository host short label (e.g. "github") for a variety of
 /// Git URL formats. This strips common TLDs so the local path uses the short
 /// host name rather than the full domain.
@@ -48,7 +62,10 @@ pub fn get_host_from_repo(repo: &str) -> Result<String> {
         }
     }
 
-    Err(anyhow!("Invalid Git repository URL: {}", repo))
+    Err(anyhow!(
+        "Invalid Git repository URL: {}",
+        sanitize_url(repo)
+    ))
 }
 
 /// Return the full host domain (e.g. "github.com") for callers that need it.
@@ -79,12 +96,31 @@ pub fn get_host_from_repo_full(repo: &str) -> Result<String> {
         }
     }
 
-    Err(anyhow!("Invalid Git repository URL: {}", repo))
+    Err(anyhow!(
+        "Invalid Git repository URL: {}",
+        sanitize_url(repo)
+    ))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::get_host_from_repo;
+    use super::{get_host_from_repo, sanitize_url};
+
+    #[test]
+    fn test_sanitize_url_with_credentials() {
+        let repo = "https://user:pass@github.com/owner/repo.git";
+        let sanitized = sanitize_url(repo);
+        assert!(!sanitized.contains("user"));
+        assert!(!sanitized.contains("pass"));
+        assert!(sanitized.contains("github.com"));
+    }
+
+    #[test]
+    fn test_sanitize_url_without_credentials() {
+        let repo = "https://github.com/owner/repo.git";
+        let sanitized = sanitize_url(repo);
+        assert_eq!(sanitized, repo);
+    }
 
     #[test]
     fn test_https() {
