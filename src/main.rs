@@ -64,20 +64,32 @@ fn main() {
     // otherwise prompt the user. If running in CI or `--no-prompt` is set, do not prompt.
     let is_ci = env::var("CI").is_ok();
     let decide_open = |default: bool| -> bool {
+        // Always open if explicitly requested
         if cli.open_vs_code {
-            true
-        } else if cli.no_open_vs_code {
-            false
-        } else if cli.no_prompt || is_ci {
-            // Non-interactive: pick sensible default (don't open in CI)
-            default && !is_ci
-        } else {
-            Confirm::new()
-                .with_prompt("Open the repository in VS Code?")
-                .default(default)
-                .interact()
-                .unwrap_or(default)
+            return true;
         }
+
+        // Never open if explicitly disabled
+        if cli.no_open_vs_code {
+            return false;
+        }
+
+        // Never open in CI environments
+        if is_ci {
+            return false;
+        }
+
+        // Use default without prompting if --no-prompt is set
+        if cli.no_prompt {
+            return default;
+        }
+
+        // Otherwise, prompt the user
+        Confirm::new()
+            .with_prompt("Open the repository in VS Code?")
+            .default(default)
+            .interact()
+            .unwrap_or(default)
     };
 
     // If the repo already exists locally, fetch updates
