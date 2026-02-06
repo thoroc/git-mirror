@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.4](https://github.com/thoroc/git-mirror/compare/v0.4.3...v0.4.4) (2026-02-06)
+
+
+### Bug Fixes
+
+* use release_created (singular) output for release-please v4 ([#15](https://github.com/thoroc/git-mirror/issues/15)) ([8b182f4](https://github.com/thoroc/git-mirror/commit/8b182f4f5ee9cfefb0bf8a17de1eeb913847525f))
+
 ## [0.4.3](https://github.com/thoroc/git-mirror/compare/v0.4.2...v0.4.3) (2026-02-06)
 
 
