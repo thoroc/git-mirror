@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/thoroc/git-mirror/compare/v0.4.2...v0.4.3) (2026-02-06)
+
+
+### Bug Fixes
+
+* make releases immutable by removing --clobber flag ([#13](https://github.com/thoroc/git-mirror/issues/13)) ([232e3a1](https://github.com/thoroc/git-mirror/commit/232e3a1cc97caba2d74b3046c9f49b02745a6964))
+
 ## [0.4.2](https://github.com/thoroc/git-mirror/compare/v0.4.1...v0.4.2) (2026-02-06)
 
 
