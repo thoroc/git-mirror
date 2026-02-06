@@ -22,51 +22,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create or update Release PR (release-please)
-        id: prepare_release
+      - name: Create or update Release PR and GitHub Release (release-please)
+        id: publish_release
         uses: googleapis/release-please-action@v4
         with:
           release-type: rust
           package-name: git-mirror
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-
-      - name: Auto-approve and merge Release PR
-        if: ${{ steps.prepare_release.outputs.prs_created == 'true' }}
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const core = require('@actions/core');
-            const prs = JSON.parse(process.env.PRS || '[]');
-            const pr = Array.isArray(prs) ? prs[0] : prs;
-            if (!pr) {
-              core.info('No release PR found to merge');
-              return;
-            }
-            const prNumber = pr.number;
-            core.info(`Approving PR #${prNumber}`);
-            await github.rest.pulls.createReview({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-              event: 'APPROVE'
-            });
-            core.info(`Merging PR #${prNumber}`);
-            await github.rest.pulls.merge({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-              merge_method: 'squash'
-            });
-        env:
-          PRS: ${{ steps.prepare_release.outputs.prs }}
-
-      - name: Create or update GitHub Release (release-please)
-        id: publish_release
-        uses: googleapis/release-please-action@v4
-        with:
-          release-type: rust
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-          skip-github-pull-request: true
 
   build_and_upload:
     needs: release
