@@ -2,11 +2,11 @@
 
 **Version:** 1.0.0  
 **Category:** Development Workflow  
-**Tags:** github, pr-review, automation, workflow
+**Tags:** github, pr-review, automation, workflow, language-agnostic
 
 ## Overview
 
-Systematic approach to addressing GitHub PR review comments with automation, tracking, and best practices.
+Systematic approach to addressing GitHub PR review comments with automation, tracking, and best practices. This skill works with any programming language or project type.
 
 ## When to Use This Skill
 
@@ -91,6 +91,8 @@ Use conventional commits:
 - `docs:` - Documentation updates
 - `test:` - Test additions or fixes
 - `perf:` - Performance improvements
+- `style:` - Code style/formatting changes
+- `build:` - Build system or dependency changes
 
 ### Examples
 
@@ -98,15 +100,15 @@ Use conventional commits:
 # Security fix
 git commit -m "security: sanitize URLs with credentials in error messages
 
-- Add sanitize_url() function to strip credentials
+- Add sanitization function to strip credentials
 - Apply to all error logging
 - Add comprehensive tests"
 
 # Code quality fix
 git commit -m "refactor: extract common helper to remove duplication
 
-- Create extract_full_host() helper
-- Use in get_host_from_repo() and get_host_from_repo_full()
+- Create shared utility function
+- Use in multiple locations
 - Reduces duplication by 30 lines"
 
 # Documentation fix
@@ -114,6 +116,12 @@ git commit -m "docs: remove migration meta-commentary from README
 
 - Remove unprofessional migration notes
 - Clean up for production readiness"
+
+# Build/dependency fix
+git commit -m "build: update deprecated GitHub Actions
+
+- Replace actions-rs/toolchain with dtolnay/rust-toolchain
+- Update all workflow files"
 ```
 
 ## Reply Templates
@@ -155,6 +163,21 @@ Added tests covering:
 All tests passing: X/X
 ```
 
+### Refactoring/Code Quality
+```markdown
+✅ Fixed in commit `refactor: <message>`
+
+**Changes made:**
+- <change 1>
+- <change 2>
+
+**Benefits:**
+- <benefit 1>
+- <benefit 2>
+
+All tests still passing: X/X
+```
+
 ## Best Practices
 
 ### Do's ✅
@@ -164,6 +187,7 @@ All tests passing: X/X
 - Reply to ALL comments (even "won't fix")
 - Push incrementally, verify CI passes
 - Post PR-level summary comment
+- Use language-agnostic commit messages
 
 ### Don'ts ❌
 - Batch unrelated fixes into one commit
@@ -171,6 +195,7 @@ All tests passing: X/X
 - Ignore low-priority suggestions without explanation
 - Push all fixes at once without testing
 - Reply only to some comments
+- Use jargon or language-specific terms in replies
 
 ## Progress Tracking
 
@@ -254,14 +279,22 @@ cd /path/to/repo
 
 # 2. Fix first critical issue
 # ... make code changes ...
-cargo test
-git add src/util.rs
+
+# Run tests (language-specific)
+npm test        # JavaScript/TypeScript
+pytest          # Python
+cargo test      # Rust
+mvn test        # Java
+go test ./...   # Go
+
+# Commit
+git add <files>
 git commit -m "security: sanitize URLs with credentials in error messages"
 git push
 
 # 3. Reply to comment
 .opencode/skills/pr-review-response/scripts/reply-comment.sh 123 2760500873 \
-  "✅ Fixed in commit \`security: sanitize URLs...\` - Added sanitize_url() function"
+  "✅ Fixed in commit \`security: sanitize URLs...\` - Added sanitization function"
 
 # 4. Mark complete in tracking doc
 # Edit .context/pr-review-123.md and mark as [x]
@@ -270,6 +303,33 @@ git push
 
 # 6. Post final summary
 .opencode/skills/pr-review-response/scripts/post-summary.sh 123
+```
+
+### Multi-Language Project Example
+
+```bash
+# Initialize review for full-stack project
+.opencode/skills/pr-review-response/scripts/init-review.sh 456
+
+# Fix backend issue (Python)
+# ... make changes to Python code ...
+pytest
+git commit -m "fix: handle null values in API response parser"
+
+# Fix frontend issue (TypeScript)
+# ... make changes to TypeScript code ...
+npm test
+git commit -m "fix: prevent race condition in state updates"
+
+# Fix CI/CD issue (YAML)
+# ... update workflow files ...
+git commit -m "chore: update deprecated actions in CI workflow"
+
+# Reply to all comments
+# ... use reply-comment.sh for each ...
+
+# Post summary
+.opencode/skills/pr-review-response/scripts/post-summary.sh 456
 ```
 
 ## Troubleshooting
@@ -289,6 +349,63 @@ git push
 **Cause:** Comment may be outdated or on deleted code  
 **Solution:** Skip the inline reply, mention it in PR-level summary instead
 
+### Different test commands per language
+**Issue:** Scripts don't know which test command to run  
+**Solution:** Manually run language-specific tests before committing
+
+## Language-Specific Notes
+
+### Running Tests
+
+**JavaScript/TypeScript:**
+```bash
+npm test
+npm run lint
+npm run type-check
+```
+
+**Python:**
+```bash
+pytest
+pylint src/
+mypy src/
+```
+
+**Rust:**
+```bash
+cargo test
+cargo clippy
+cargo fmt --check
+```
+
+**Go:**
+```bash
+go test ./...
+go vet ./...
+golangci-lint run
+```
+
+**Java:**
+```bash
+mvn test
+mvn checkstyle:check
+mvn spotbugs:check
+```
+
+**Ruby:**
+```bash
+bundle exec rspec
+bundle exec rubocop
+```
+
+### Code Quality Tools
+
+Adapt the workflow to your language's ecosystem:
+- Linters (eslint, pylint, clippy, golangci-lint, etc.)
+- Formatters (prettier, black, rustfmt, gofmt, etc.)
+- Type checkers (TypeScript, mypy, Flow, etc.)
+- Static analyzers (SonarQube, CodeClimate, etc.)
+
 ## Related Skills
 
 - `conventional-commits` - Commit message formatting
@@ -298,4 +415,4 @@ git push
 ## Related Documentation
 
 - `.opencode/knowledge-base/github-pr-review-response.md` - Best practices guide
-- `.opencode/knowledge-base/rust-security-review.md` - Security review checklist
+- Language-specific security checklists in knowledge base

@@ -2,11 +2,11 @@
 
 **Last Updated:** 2026-02-06  
 **Category:** Development Workflow  
-**Tags:** github, pr-review, code-review, automation
+**Tags:** github, pr-review, code-review, automation, language-agnostic
 
 ## Overview
 
-This document captures best practices for systematically addressing GitHub PR review comments using automation and CLI tools.
+This document captures best practices for systematically addressing GitHub PR review comments using automation and CLI tools. These practices apply to projects in any programming language.
 
 ## Key Principles
 
@@ -81,27 +81,53 @@ When code changes after review:
 4. **Add tests** - Verify the fix prevents the vulnerability
 5. **Document rationale** - Explain why the fix works
 
-### Example Security Fixes
+### Common Security Patterns
 
-```rust
-// ❌ Bad: Exposes credentials in error messages
-Err(anyhow!("Failed to parse URL: {}", url))
+#### Credential Exposure
 
-// ✅ Good: Sanitizes credentials before logging
-fn sanitize_url(url: &str) -> String {
-    url.split('@').last().unwrap_or(url).to_string()
+```javascript
+// ❌ Bad: Exposes credentials in logs
+console.error(`Failed to connect: ${connectionString}`);
+
+// ✅ Good: Sanitizes before logging
+function sanitizeUrl(url) {
+  return url.split('@').pop();
 }
-Err(anyhow!("Failed to parse URL: {}", sanitize_url(url)))
+console.error(`Failed to connect: ${sanitizeUrl(connectionString)}`);
 ```
 
-```yaml
-# ❌ Bad: Pipes token via stdin (visible in logs if fails)
-- run: echo "${{ secrets.TOKEN }}" | gh auth login --with-token
+#### Token Handling in CI
 
-# ✅ Good: Use environment variable (gh CLI auto-detects)
-- run: gh pr view 1
+```yaml
+# ❌ Bad: Token in command line (visible in process list)
+- run: curl -H "Authorization: token ${{ secrets.TOKEN }}" ...
+
+# ✅ Good: Token in environment variable
+- run: curl -H "Authorization: token $TOKEN" ...
   env:
-    GH_TOKEN: ${{ secrets.TOKEN }}
+    TOKEN: ${{ secrets.TOKEN }}
+```
+
+#### Path Traversal
+
+```python
+# ❌ Bad: User input directly in path
+file_path = os.path.join(base_dir, user_input)
+
+# ✅ Good: Validate and sanitize input
+import os.path
+safe_name = os.path.basename(user_input)  # Remove directory parts
+file_path = os.path.join(base_dir, safe_name)
+```
+
+#### Command Injection
+
+```python
+# ❌ Bad: Shell=True with user input
+subprocess.run(f"git clone {repo_url}", shell=True)
+
+# ✅ Good: Pass as array, no shell
+subprocess.run(["git", "clone", repo_url], shell=False)
 ```
 
 ## Code Quality Review Response
@@ -110,18 +136,20 @@ Err(anyhow!("Failed to parse URL: {}", sanitize_url(url)))
 - Extract common logic into helper functions
 - Use single source of truth
 - Add tests for the extracted helper
+- Document the shared functionality
 
 ### Simplification
 - Make control flow explicit
 - Reduce nesting and complexity
 - Use early returns
 - Add comments for non-obvious logic
+- Follow language-specific idioms
 
 ### Maintenance
 - Update deprecated dependencies
 - Remove dead code (with git archaeology to verify)
 - Clean up comments and documentation
-- Follow language idioms
+- Modernize patterns to current best practices
 
 ## Testing Strategy
 
@@ -131,24 +159,41 @@ Err(anyhow!("Failed to parse URL: {}", sanitize_url(url)))
 - Test error conditions
 - Verify fix prevents the original issue
 
-### Test Coverage Additions
+### Language-Specific Examples
 
-```rust
-#[cfg(test)]
-mod tests {
-    use super::*;
+**JavaScript/TypeScript:**
+```javascript
+describe('function name', () => {
+  it('should handle valid input', () => {
+    expect(function('input')).toBe('output');
+  });
+  
+  it('should handle edge cases', () => {
+    expect(function('')).toThrow();
+  });
+});
+```
 
-    #[test]
-    fn test_new_functionality() {
-        // Test happy path
-        assert_eq!(function("input"), Ok("output"));
-        
-        // Test edge cases
-        assert!(function("").is_err());
-        
-        // Test error conditions
-        assert!(function("invalid").is_err());
-    }
+**Python:**
+```python
+def test_function_valid_input():
+    assert function('input') == 'output'
+
+def test_function_edge_case():
+    with pytest.raises(ValueError):
+        function('')
+```
+
+**Java:**
+```java
+@Test
+public void testFunctionValidInput() {
+    assertEquals("output", function("input"));
+}
+
+@Test(expected = IllegalArgumentException.class)
+public void testFunctionEdgeCase() {
+    function("");
 }
 ```
 
@@ -159,12 +204,14 @@ mod tests {
 - Fix broken badges
 - Remove duplicate sections
 - Update examples to match current API
+- Check all links are valid
 
 ### CONTRIBUTING.md Updates
 - Document new workflows (e.g., manual release approval)
 - Add security review checklists
 - Update development setup if changed
 - Document CI/CD changes
+- Update branch strategy if modified
 
 ## Common Pitfalls
 
@@ -174,6 +221,7 @@ mod tests {
 - Ignore low-priority suggestions without explanation
 - Push all fixes at once without incremental testing
 - Skip adding tests for fixed bugs
+- Use language-specific jargon in commit messages
 
 ### ✅ Do
 - One logical fix per commit
@@ -181,21 +229,47 @@ mod tests {
 - Explain rationale for deferring fixes
 - Test after each commit
 - Push incrementally and verify CI
+- Use clear, descriptive commit messages
 
 ## Workflow Automation
 
 ### Pre-commit Checklist
+
+**Language-agnostic:**
 ```bash
-# Before committing
-cargo test          # Verify tests pass
-cargo clippy        # Check for warnings
-cargo fmt --check   # Verify formatting
 git status          # Review staged changes
+git diff --cached   # Review actual changes
+```
+
+**Language-specific examples:**
+```bash
+# JavaScript/TypeScript
+npm test
+npm run lint
+npm run format:check
+
+# Python
+pytest
+pylint src/
+black --check .
+
+# Rust
+cargo test
+cargo clippy
+cargo fmt --check
+
+# Go
+go test ./...
+go vet ./...
+gofmt -l .
+
+# Java
+mvn test
+mvn checkstyle:check
 ```
 
 ### Post-push Checklist
 ```bash
-# After pushing
 gh pr view PR_NUMBER --web    # Verify changes visible
 gh pr checks PR_NUMBER         # Verify CI status
 gh pr view PR_NUMBER --json reviews  # Check review status
@@ -221,9 +295,9 @@ gh pr view PR_NUMBER --json reviews  # Check review status
 ```markdown
 🔐 Fixed in commit `security: <message>`
 
-- <what was vulnerable>
-- <how it's fixed>  
-- <how it's tested>
+- **What was vulnerable:** <description>
+- **How it's fixed:** <explanation>  
+- **How it's tested:** <test description>
 ```
 
 ### Testing Added
@@ -234,6 +308,23 @@ Added tests covering:
 - <test case 1>
 - <test case 2>
 - <test case 3>
+
+All tests passing: X/X
+```
+
+### Refactoring/Code Quality
+```markdown
+✅ Fixed in commit `refactor: <message>`
+
+**Changes made:**
+- <change 1>
+- <change 2>
+
+**Benefits:**
+- <benefit 1>
+- <benefit 2>
+
+All tests still passing: X/X
 ```
 
 ## Metrics to Track
@@ -242,6 +333,7 @@ Added tests covering:
 - Critical/High/Medium/Low breakdown
 - Commits created
 - Tests added
+- Lines of code changed
 - Time to resolution
 - CI pass rate
 
@@ -250,3 +342,4 @@ Added tests covering:
 - [Conventional Commits](https://www.conventionalcommits.org/)
 - [GitHub CLI Manual](https://cli.github.com/manual/)
 - [Pull Request Review Guide](https://github.com/features/code-review)
+- Language-specific security guides (OWASP, etc.)
