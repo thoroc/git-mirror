@@ -183,6 +183,14 @@ jobs:
         run: |
           cd ./artifacts
           TAG="v${VERSION}"
+          
+          # Check if release already exists and delete it (it was created without artifacts)
+          if gh release view "${TAG}" &>/dev/null; then
+            echo "Release ${TAG} already exists, deleting it to recreate with artifacts..."
+            gh release delete "${TAG}" --yes
+          fi
+          
+          # Create the release with all artifacts
           gh release create "${TAG}" \
             --title "Release ${TAG}" \
             --generate-notes \
