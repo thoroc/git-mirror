@@ -41,26 +41,32 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact_name: git-mirror
-            archive_name: git-mirror-linux-x86_64.tar.gz
+            base_name: git-mirror-linux-x86_64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             artifact_name: git-mirror
-            archive_name: git-mirror-linux-aarch64.tar.gz
+            base_name: git-mirror-linux-aarch64
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: git-mirror
-            archive_name: git-mirror-macos-x86_64.tar.gz
+            base_name: git-mirror-macos-x86_64
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: git-mirror
-            archive_name: git-mirror-macos-aarch64.tar.gz
+            base_name: git-mirror-macos-aarch64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: git-mirror.exe
-            archive_name: git-mirror-windows-x86_64.zip
+            base_name: git-mirror-windows-x86_64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Extract version from Cargo.toml
+        id: get_version
+        run: |
+          VERSION=$(grep -E '^version\s*=' Cargo.toml | head -n1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -81,14 +87,17 @@ jobs:
 
       - name: Package binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
         run: |
+          ARCHIVE_NAME="${{ matrix.base_name }}-v${VERSION}.tar.gz"
           cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.archive_name }} ${{ matrix.artifact_name }}
+          tar czf ../../../${ARCHIVE_NAME} ${{ matrix.artifact_name }}
           cd ../../..
           if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum ${{ matrix.archive_name }} > ${{ matrix.archive_name }}.sha256
+            sha256sum ${ARCHIVE_NAME} > ${ARCHIVE_NAME}.sha256
           elif command -v shasum >/dev/null 2>&1; then
-            shasum -a 256 ${{ matrix.archive_name }} | awk '{print $1 "  " $2}' > ${{ matrix.archive_name }}.sha256
+            shasum -a 256 ${ARCHIVE_NAME} | awk '{print $1 "  " $2}' > ${ARCHIVE_NAME}.sha256
           else
             echo "Error: No suitable SHA-256 checksum tool found (sha256sum or shasum)." >&2
             exit 1
@@ -96,12 +105,15 @@ jobs:
 
       - name: Package binary (Windows)
         if: matrix.os == 'windows-latest'
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
         run: |
+          $ArchiveName = "${{ matrix.base_name }}-v${env:VERSION}.zip"
           cd target\${{ matrix.target }}\release
-          7z a ..\..\..\${{ matrix.archive_name }} ${{ matrix.artifact_name }}
+          7z a ..\..\..\$ArchiveName ${{ matrix.artifact_name }}
           cd ..\..\..
-          $hash = (Get-FileHash -Algorithm SHA256 ${{ matrix.archive_name }}).Hash.ToLower()
-          "$hash  ${{ matrix.archive_name }}" | Out-File -Encoding ASCII ${{ matrix.archive_name }}.sha256
+          $hash = (Get-FileHash -Algorithm SHA256 $ArchiveName).Hash.ToLower()
+          "$hash  $ArchiveName" | Out-File -Encoding ASCII "${ArchiveName}.sha256"
         shell: powershell
 
       - name: Install GitHub CLI (Linux)
@@ -136,10 +148,11 @@ jobs:
       - name: Upload artifacts to workflow
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive_name }}
+          name: ${{ matrix.base_name }}-v${{ steps.get_version.outputs.version }}
           path: |
-            ${{ matrix.archive_name }}
-            ${{ matrix.archive_name }}.sha256
+            ${{ matrix.base_name }}-v*.tar.gz
+            ${{ matrix.base_name }}-v*.zip
+            ${{ matrix.base_name }}-v*.sha256
 
   create_release:
     needs: [release, build_and_upload]
