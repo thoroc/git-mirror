@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.6](https://github.com/thoroc/git-mirror/compare/v0.4.5...v0.4.6) (2026-02-07)
+
+
+### Bug Fixes
+
+* skip release creation if immutable release already exists ([#25](https://github.com/thoroc/git-mirror/issues/25))
+* handle existing releases when creating with artifacts ([#24](https://github.com/thoroc/git-mirror/issues/24))
+* add shell: bash to version extraction steps ([#23](https://github.com/thoroc/git-mirror/issues/23))
+* extract version from Cargo.toml for immutable releases ([#21](https://github.com/thoroc/git-mirror/issues/21))
+
 ## [0.4.5](https://github.com/thoroc/git-mirror/compare/v0.4.4...v0.4.5) (2026-02-06)
 
 
