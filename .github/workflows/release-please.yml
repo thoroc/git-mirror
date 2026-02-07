@@ -64,6 +64,7 @@ jobs:
 
       - name: Extract version from Cargo.toml
         id: get_version
+        shell: bash
         run: |
           VERSION=$(grep -E '^version\s*=' Cargo.toml | head -n1 | sed 's/.*"\(.*\)".*/\1/')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
@@ -170,6 +171,7 @@ jobs:
 
       - name: Extract version from Cargo.toml
         id: get_version
+        shell: bash
         run: |
           VERSION=$(grep -E '^version\s*=' Cargo.toml | head -n1 | sed 's/.*"\(.*\)".*/\1/')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
