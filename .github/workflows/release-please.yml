@@ -184,10 +184,11 @@ jobs:
           cd ./artifacts
           TAG="v${VERSION}"
           
-          # Check if release already exists and delete it (it was created without artifacts)
+          # Check if release already exists
           if gh release view "${TAG}" &>/dev/null; then
-            echo "Release ${TAG} already exists, deleting it to recreate with artifacts..."
-            gh release delete "${TAG}" --yes
+            echo "Release ${TAG} already exists (immutable). Skipping release creation."
+            echo "Note: Artifacts were built but cannot be uploaded to existing immutable release."
+            exit 0
           fi
           
           # Create the release with all artifacts
