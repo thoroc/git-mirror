@@ -73,15 +73,13 @@ main() {
     log_info "Detected OS: $OS"
     log_info "Detected architecture: $ARCH"
 
-    # Determine file extension and archive name
+    # Determine file extension
     if [ "$OS" = "windows" ]; then
         EXT="zip"
         BINARY_NAME="git-mirror.exe"
     else
         EXT="tar.gz"
     fi
-
-    ARCHIVE_NAME="${BINARY_NAME%.*}-${OS}-${ARCH}-${VERSION}.${EXT}"
 
     # Get latest version
     log_info "Fetching latest release version..."
@@ -93,6 +91,9 @@ main() {
     fi
 
     log_info "Latest version: $VERSION"
+
+    # Construct archive name after VERSION is known
+    ARCHIVE_NAME="${BINARY_NAME%.*}-${OS}-${ARCH}-${VERSION}.${EXT}"
 
     # Download URL
     DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARCHIVE_NAME}"
