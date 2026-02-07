@@ -81,7 +81,6 @@ main() {
         EXT="tar.gz"
     fi
 
-    ARCHIVE_NAME="${BINARY_NAME%.*}-${OS}-${ARCH}-${VERSION}.${EXT}"
 
     # Get latest version
     log_info "Fetching latest release version..."
