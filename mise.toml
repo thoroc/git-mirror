@@ -1,0 +1,11 @@
+[tools]
+rust = { version = "stable", components = ["rustfmt", "clippy"] }
+hk = "latest"
+pkl = "latest"
+shellcheck = "latest"
+"cargo:cargo-audit" = "latest"
+"cargo:cargo-tarpaulin" = "latest"
+
+[hooks]
+enter = "mise install"
+postinstall = "hk install"
