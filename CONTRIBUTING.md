@@ -50,6 +50,13 @@ Notes & security recommendations
 - Rotate the token regularly and remove it if the user account is removed or compromised.
 - If you need CI runs on release-please PRs and releases, the PAT must be from a user with write access to the repository.
 
+PR review automation
+---------------------
+
+- `.github/workflows/pr-agent.yml` posts an LLM-generated description and review on pull requests via [PR-Agent](https://github.com/qodo-ai/pr-agent). It is advisory only (`continue-on-error: true`) and never blocks a merge.
+- It only runs if at least one provider key is configured as a repository secret: `GEMINI_API_KEY` (primary), `MISTRAL_API_KEY`, or `CEREBRAS_API_KEY` (fallbacks). With none set, the workflow skips cleanly and posts a notice.
+- Add secrets under `Settings > Secrets and variables > Actions`. Remove all three to disable the review entirely.
+
 Troubleshooting
 ---------------
 
