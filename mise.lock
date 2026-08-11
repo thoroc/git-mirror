@@ -12,6 +12,31 @@ backend = "cargo:cargo-tarpaulin"
 version = "1.110.0"
 backend = "github:mongodb/kingfisher"
 
+[tools."github:mongodb/kingfisher"."platforms.linux-arm64"]
+checksum = "sha256:8f31034da90745923f5ff5b0792a22d9300e0f77ff2e5e4359da1f129aa67ec1"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.110.0/kingfisher-linux-arm64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/497270418"
+provenance = "github-attestations"
+
+[tools."github:mongodb/kingfisher"."platforms.linux-x64"]
+checksum = "sha256:f55296fe4c6090c27963b2f62f5938e90b187ab1357466c8661d3786f6be7f14"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.110.0/kingfisher-linux-x64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/497270373"
+provenance = "github-attestations"
+
+[tools."github:mongodb/kingfisher"."platforms.macos-arm64"]
+checksum = "sha256:f2a5e324eb57578817d7398158ae243f4b1db374df4a40228dcc02cd48db4400"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.110.0/kingfisher-darwin-arm64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/497270491"
+provenance = "github-attestations"
+provenance_verified = true
+
+[tools."github:mongodb/kingfisher"."platforms.macos-x64"]
+checksum = "sha256:194e62ec10535a519ce3a2c08d8866342cb6b51af1df37bf04c35974cbbfe896"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.110.0/kingfisher-darwin-x64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/497270474"
+provenance = "github-attestations"
+
 [[tools.hk]]
 version = "1.54.0"
 backend = "aqua:jdx/hk"
