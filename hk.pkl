@@ -5,6 +5,13 @@ local linters = new Mapping<String, Step> {
     ["cargo-fmt"] = Builtins.cargo_fmt
     ["cargo-clippy"] = Builtins.cargo_clippy
     ["shellcheck"] = Builtins.shellcheck
+    // No builtin for Kingfisher; --staged scans the synthesized staged diff
+    // (not the raw working tree), so it never needs .kingfisher-baseline.yml —
+    // that file only suppresses pre-existing findings in git history, which
+    // --staged doesn't look at.
+    ["kingfisher"] {
+        check = "kingfisher scan . --staged --quiet --no-update-check"
+    }
 }
 
 hooks {

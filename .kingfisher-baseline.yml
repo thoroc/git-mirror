@@ -1,0 +1,30 @@
+ExactFindings:
+  matches:
+  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rmeta
+    fingerprint: '3583673144671533681'
+    linenum: 641
+    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
+  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rmeta
+    fingerprint: '12982483814732687615'
+    linenum: 649
+    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
+  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rmeta
+    fingerprint: '13107631496495694518'
+    linenum: 620
+    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
+  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rlib
+    fingerprint: '6595895914350885018'
+    linenum: 774
+    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
+  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rlib
+    fingerprint: '2248700921942852958'
+    linenum: 782
+    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
+  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rlib
+    fingerprint: '4938815688621001442'
+    linenum: 753
+    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
+  - filepath: ./.git/.opencode/knowledge-base/rust-security-review.md
+    fingerprint: '17519252348742193556'
+    linenum: 236
+    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100

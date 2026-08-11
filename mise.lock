@@ -8,6 +8,10 @@ backend = "cargo:cargo-audit"
 version = "0.37.0"
 backend = "cargo:cargo-tarpaulin"
 
+[[tools."github:mongodb/kingfisher"]]
+version = "1.110.0"
+backend = "github:mongodb/kingfisher"
+
 [[tools.hk]]
 version = "1.54.0"
 backend = "aqua:jdx/hk"
