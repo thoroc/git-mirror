@@ -50,6 +50,31 @@ Notes & security recommendations
 - Rotate the token regularly and remove it if the user account is removed or compromised.
 - If you need CI runs on release-please PRs and releases, the PAT must be from a user with write access to the repository.
 
+PR review automation
+---------------------
+
+- `.github/workflows/pr-agent.yml` posts an LLM-generated description and review on pull requests via [PR-Agent](https://github.com/qodo-ai/pr-agent). It is advisory only (`continue-on-error: true`) and never blocks a merge.
+- It only runs if at least one provider key is configured as a repository secret: `GEMINI_API_KEY` (primary), `MISTRAL_API_KEY`, or `CEREBRAS_API_KEY` (fallbacks). With none set, the workflow skips cleanly and posts a notice.
+- Add secrets under `Settings > Secrets and variables > Actions`. Remove all three to disable the review entirely.
+
+Secret scanning
+----------------
+
+- [Kingfisher](https://github.com/mongodb/kingfisher) scans for leaked credentials in two places: a pre-commit hook (`kingfisher scan . --staged`, only the staged diff) and `.github/workflows/kingfisher.yml` (full working tree + git history, on push to `main`, on PRs, and weekly). `mise install` installs the binary and wires up the hook automatically.
+- Unlike Plumber's High/Medium/Low backlog model, any new finding here fails the check — a leaked secret is always-blocking, not tracked-and-deferred. Findings also upload to the Security tab as SARIF.
+- `.kingfisher-baseline.yml` (repo root) suppresses known non-issues so the scan can actually pass — currently a documentation example and some test-fixture strings baked into a `target/` build artifact that was briefly committed to history. It is not a place to hide a real secret.
+- If the scan flags something new:
+  - **A real secret**: rotate/revoke it immediately, then remove it from the code. Don't baseline it.
+  - **A false positive**: regenerate the baseline with `kingfisher scan . --manage-baseline --baseline-file .kingfisher-baseline.yml` (run from the repo root so paths match) and commit the updated file.
+
+Dependency updates
+------------------
+
+- [Renovate](https://github.com/renovatebot/renovate) is configured via `renovate.json5` at the repo root. It covers three ecosystems: Cargo (`Cargo.toml`/`Cargo.lock`), GitHub Actions (including keeping SHA-pinned actions' digests current), and mise (`mise.toml`/`mise.lock` — every tool: `rust`, `hk`, `pkl`, `shellcheck`, `cargo-audit`, `cargo-tarpaulin`, `kingfisher`).
+- All non-major updates (minor, patch, pin, digest) land in a single weekly PR across every ecosystem, to keep review overhead low. Major updates each get their own independent PR.
+- Renovate only looks for updates once a week: Monday, 00:00-03:59 UTC.
+- **The Renovate GitHub App still needs to be installed on this repository** — the config file alone doesn't activate it. Install it at <https://github.com/apps/renovate> (or run it self-hosted via a scheduled GitHub Actions workflow) and grant it access to this repo.
+
 Troubleshooting
 ---------------
 

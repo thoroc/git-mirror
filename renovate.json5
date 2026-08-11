@@ -1,0 +1,30 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended"],
+
+  // Renovate defaults to UTC; set explicitly so the schedule below is
+  // unambiguous regardless of where Renovate itself runs.
+  timezone: "UTC",
+
+  // Only look for updates once a week: Monday, 00:00-03:59 UTC. Applies to
+  // everything (Cargo, GitHub Actions, mise) unless a packageRule below
+  // overrides it — none do, so this is the cadence for the whole repo.
+  schedule: ["* 0-3 * * 1"],
+
+  packageRules: [
+    {
+      // Every non-major update (any ecosystem: Cargo, GitHub Actions
+      // digest bumps, mise tools) lands in a single weekly PR, to keep
+      // review overhead low on a small, single-maintainer repo.
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      groupName: "non-major dependencies",
+    },
+    {
+      // Major updates are more likely to need a closer look, so each gets
+      // its own PR rather than being folded into the group above. This is
+      // Renovate's default (ungrouped) behavior — kept explicit here so the
+      // policy is documented, not just assumed.
+      matchUpdateTypes: ["major"],
+    },
+  ],
+}

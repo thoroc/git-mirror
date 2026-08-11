@@ -1,0 +1,47 @@
+amends "package://github.com/jdx/hk/releases/download/v1.54.0/hk@1.54.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.54.0/hk@1.54.0#/Builtins.pkl"
+
+local linters = new Mapping<String, Step> {
+    ["cargo-fmt"] = Builtins.cargo_fmt
+    ["cargo-clippy"] = Builtins.cargo_clippy
+    ["shellcheck"] = Builtins.shellcheck
+    // hk added an official Builtins.kingfisher upstream (jdx/hk#1160), but it's
+    // unreleased as of hk v1.54.1 — switch to it once a release contains it.
+    // Meanwhile: --staged scans the synthesized staged diff (not the raw
+    // working tree), so it never needs .kingfisher-baseline.yml — that file
+    // only suppresses pre-existing findings in git history, which --staged
+    // doesn't look at. --no-validate skips live credential-validation network
+    // calls for hook speed; CI leaves validation on since it isn't
+    // latency-sensitive and validation is what cuts down false positives.
+    ["kingfisher"] {
+        check = "kingfisher scan . --staged --no-validate --quiet --no-update-check"
+    }
+}
+
+hooks {
+    ["pre-commit"] {
+        fix = true
+        stash = "git"
+        steps = linters
+    }
+    ["pre-push"] {
+        steps {
+            ["cargo-test"] {
+                glob = "**/*.rs"
+                check = "cargo test --workspace --all-features --quiet"
+            }
+        }
+    }
+    ["commit-msg"] {
+        steps {
+            ["check-conventional-commit"] = Builtins.check_conventional_commit
+        }
+    }
+    ["fix"] {
+        fix = true
+        steps = linters
+    }
+    ["check"] {
+        steps = linters
+    }
+}

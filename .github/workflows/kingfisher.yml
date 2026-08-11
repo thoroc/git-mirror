@@ -1,0 +1,63 @@
+name: Kingfisher
+
+# Secret scanning via MongoDB's Kingfisher (open-source secret scanner with live
+# credential validation — https://github.com/mongodb/kingfisher). Scans the
+# full working tree plus git history against .kingfisher-baseline.yml (repo
+# root), which suppresses known non-issues — see CONTRIBUTING.md. Any new,
+# unbaselined finding fails the job: unlike Plumber's High/Medium/Low backlog
+# model, a leaked secret is always-blocking here, never tracked-and-deferred.
+# Findings also upload to the Security tab as SARIF for triage.
+#
+# Installed via mise (jdx/mise-action, pinned by SHA) rather than Kingfisher's
+# own curl-pipe install script, so this doesn't hand Plumber's own
+# mutable-remote-code-execution control (ISSUE-714) a new finding to catch.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+  schedule:
+    # Weekly (Mondays 04:17 UTC, offset from Plumber's 03:41 run) to catch
+    # anything that slipped in outside the pre-commit hook (e.g. --no-verify).
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kingfisher:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload SARIF to Code Scanning
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0 # full history — Kingfisher defaults to --git-history full
+
+      - uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654 # v4.2.4
+        with:
+          # Must match the exact key in mise.toml, not a bare short name —
+          # "kingfisher" alone resolves against mise's central tool registry
+          # (no entry there) rather than this repo's mise.toml.
+          install_args: "github:mongodb/kingfisher"
+
+      - name: Scan for secrets
+        run: |
+          kingfisher scan . \
+            --baseline-file .kingfisher-baseline.yml \
+            --format sarif \
+            -o kingfisher-results.sarif \
+            --no-update-check
+
+      - name: Upload SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@c4dd10e44af883a891fe31ced449bcb4a6728b9b # v3
+        with:
+          sarif_file: kingfisher-results.sarif

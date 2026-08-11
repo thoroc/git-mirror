@@ -1,0 +1,12 @@
+[tools]
+rust = { version = "stable", components = ["rustfmt", "clippy"] }
+hk = "latest"
+pkl = "latest"
+shellcheck = "latest"
+"cargo:cargo-audit" = "latest"
+"cargo:cargo-tarpaulin" = "latest"
+"github:mongodb/kingfisher" = "latest"
+
+[hooks]
+enter = "mise install"
+postinstall = "hk install --mise"

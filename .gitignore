@@ -7,3 +7,5 @@ target/
 .context
 .opencode
 opencode.json
+!mise.toml
+!install.sh
