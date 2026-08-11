@@ -57,6 +57,13 @@ PR review automation
 - It only runs if at least one provider key is configured as a repository secret: `GEMINI_API_KEY` (primary), `MISTRAL_API_KEY`, or `CEREBRAS_API_KEY` (fallbacks). With none set, the workflow skips cleanly and posts a notice.
 - Add secrets under `Settings > Secrets and variables > Actions`. Remove all three to disable the review entirely.
 
+CI/CD security scanning (Plumber)
+---------------------------------
+
+- [Plumber](https://github.com/getplumber/plumber) (`.github/workflows/plumber.yml`) scans this repository's own GitHub Actions workflows and configuration for issues like unpinned actions, untrusted shell input, missing branch protection, and over-broad permissions. Config lives in `.plumber.yaml` (extends Plumber's default control set). Runs on push to `main`, on PRs, and weekly.
+- Findings are graded Critical/High/Medium/Low. Only **Critical** blocks the PR (`scripts/plumber-gate.sh`); High/Medium/Low are tracked but never blocking — they land in a rolling backlog issue on push to `main` (`scripts/plumber-file-issues.sh`) and a per-PR comment (`scripts/plumber-pr-comment.sh`). All findings also upload to the Security tab as SARIF.
+- The Plumber action itself runs with `continue-on-error: true`, so its own score gate or a transient runtime error never blocks a merge — the only blocking signal is a Critical finding via `plumber-gate.sh`.
+
 Secret scanning
 ----------------
 
