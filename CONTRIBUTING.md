@@ -67,6 +67,14 @@ Secret scanning
   - **A real secret**: rotate/revoke it immediately, then remove it from the code. Don't baseline it.
   - **A false positive**: regenerate the baseline with `kingfisher scan . --manage-baseline --baseline-file .kingfisher-baseline.yml` (run from the repo root so paths match) and commit the updated file.
 
+Dependency updates
+------------------
+
+- [Renovate](https://github.com/renovatebot/renovate) is configured via `renovate.json5` at the repo root. It covers three ecosystems: Cargo (`Cargo.toml`/`Cargo.lock`), GitHub Actions (including keeping SHA-pinned actions' digests current), and mise (`mise.toml`/`mise.lock` — every tool: `rust`, `hk`, `pkl`, `shellcheck`, `cargo-audit`, `cargo-tarpaulin`, `kingfisher`).
+- All non-major updates (minor, patch, pin, digest) land in a single weekly PR across every ecosystem, to keep review overhead low. Major updates each get their own independent PR.
+- Renovate only looks for updates once a week: Monday, 00:00-03:59 UTC.
+- **The Renovate GitHub App still needs to be installed on this repository** — the config file alone doesn't activate it. Install it at <https://github.com/apps/renovate> (or run it self-hosted via a scheduled GitHub Actions workflow) and grant it access to this repo.
+
 Troubleshooting
 ---------------
 
