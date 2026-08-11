@@ -1,7 +1,7 @@
 # git-mirror
 
 [![CI](https://github.com/thoroc/git-mirror/actions/workflows/ci.yml/badge.svg)](https://github.com/thoroc/git-mirror/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-0.4.0-blue)](https://github.com/thoroc/git-mirror/releases)
+[![Version](https://img.shields.io/badge/version-0.4.6-blue)](https://github.com/thoroc/git-mirror/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Rust](https://img.shields.io/badge/built%20with-Rust-orange)](https://www.rust-lang.org/)
 
@@ -43,13 +43,13 @@ curl -fsSL https://raw.githubusercontent.com/thoroc/git-mirror/main/install.sh |
 
 ### Manual Installation
 
-Download the appropriate binary for your system from the [latest release](https://github.com/thoroc/git-mirror/releases/latest):
+Download the appropriate binary for your system from the [latest release](https://github.com/thoroc/git-mirror/releases/latest). Archive names include the version tag, e.g. for `v0.4.6`:
 
-- **Linux x86_64**: `git-mirror-linux-x86_64.tar.gz`
-- **Linux ARM64**: `git-mirror-linux-aarch64.tar.gz`
-- **macOS Intel**: `git-mirror-macos-x86_64.tar.gz`
-- **macOS Apple Silicon**: `git-mirror-macos-aarch64.tar.gz`
-- **Windows**: `git-mirror-windows-x86_64.zip`
+- **Linux x86_64**: `git-mirror-linux-x86_64-v0.4.6.tar.gz`
+- **Linux ARM64**: `git-mirror-linux-aarch64-v0.4.6.tar.gz`
+- **macOS Intel**: `git-mirror-macos-x86_64-v0.4.6.tar.gz`
+- **macOS Apple Silicon**: `git-mirror-macos-aarch64-v0.4.6.tar.gz`
+- **Windows**: `git-mirror-windows-x86_64-v0.4.6.zip`
 
 Extract and move to a directory in your `PATH`:
 
@@ -78,7 +78,14 @@ cargo run -- <repo> --print-cd
 
 ### Git Alias (Optional)
 
-To add a Git alias for convenience, add to your `~/.gitconfig`:
+The quick-install script (above) configures a `git mirror` alias automatically:
+
+```toml
+[alias]
+  mirror = "!git-mirror \"$@\" && cd \"$_\""
+```
+
+Like calling the binary directly, this alias cannot change your parent shell's working directory (see the `cd` caveat under Notes below) — use `--print-cd` with `eval` for that. If you installed manually and want the alias, add a plain version to `~/.gitconfig` yourself:
 
 ```toml
 [alias]
