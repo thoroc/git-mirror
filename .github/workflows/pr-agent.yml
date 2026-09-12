@@ -57,7 +57,7 @@ jobs:
       - name: PR Agent action step
         if: steps.key.outputs.present == 'true'
         continue-on-error: true
-        uses: docker://pragent/pr-agent@sha256:ea2ea90f072fd97708755e59827a317272f66097a1ef349eca23d39160bb0baf
+        uses: docker://pragent/pr-agent@sha256:e6463e802562daa47db51950de84100a5679472844926d77d53911e529398ee5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Model IDs on every provider are point-in-time; expect to bump these
