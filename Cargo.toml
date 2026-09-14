@@ -8,6 +8,6 @@ clap = { version = "4.3", features = ["derive"] }
 url = "2"
 which = "8"
 anyhow = "1"
-owo-colors = "3"
+owo-colors = "4"
 dirs = "6"
 dialoguer = "0.10"
