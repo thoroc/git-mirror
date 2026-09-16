@@ -24,7 +24,7 @@ jobs:
 
       - name: Create or update Release PR (release-please)
         id: publish_release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@v5
         with:
           release-type: rust
           package-name: git-mirror
