@@ -5,40 +5,57 @@ version = "0.22.2"
 backend = "cargo:cargo-audit"
 
 [[tools."cargo:cargo-tarpaulin"]]
-version = "0.37.0"
+version = "0.37.3"
 backend = "cargo:cargo-tarpaulin"
 
 [[tools."github:mongodb/kingfisher"]]
-version = "1.110.0"
+version = "1.113.0"
 backend = "github:mongodb/kingfisher"
 
 [tools."github:mongodb/kingfisher"."platforms.linux-arm64"]
-checksum = "sha256:8f31034da90745923f5ff5b0792a22d9300e0f77ff2e5e4359da1f129aa67ec1"
-url = "https://github.com/mongodb/kingfisher/releases/download/v1.110.0/kingfisher-linux-arm64.tgz"
-url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/497270418"
+checksum = "sha256:4d686a2da145234fb1a8b56429da44bb33fc49e4ab4c28a48e705197ae183f16"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.113.0/kingfisher-linux-arm64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/510959049"
+provenance = "github-attestations"
+
+[tools."github:mongodb/kingfisher"."platforms.linux-arm64-musl"]
+checksum = "sha256:4d686a2da145234fb1a8b56429da44bb33fc49e4ab4c28a48e705197ae183f16"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.113.0/kingfisher-linux-arm64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/510959049"
 provenance = "github-attestations"
 
 [tools."github:mongodb/kingfisher"."platforms.linux-x64"]
-checksum = "sha256:f55296fe4c6090c27963b2f62f5938e90b187ab1357466c8661d3786f6be7f14"
-url = "https://github.com/mongodb/kingfisher/releases/download/v1.110.0/kingfisher-linux-x64.tgz"
-url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/497270373"
+checksum = "sha256:798affdc312ca1651623856c0511a884baf399aecdf61cebad4ef73548b6f411"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.113.0/kingfisher-linux-x64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/510959009"
+provenance = "github-attestations"
+
+[tools."github:mongodb/kingfisher"."platforms.linux-x64-musl"]
+checksum = "sha256:798affdc312ca1651623856c0511a884baf399aecdf61cebad4ef73548b6f411"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.113.0/kingfisher-linux-x64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/510959009"
 provenance = "github-attestations"
 
 [tools."github:mongodb/kingfisher"."platforms.macos-arm64"]
-checksum = "sha256:f2a5e324eb57578817d7398158ae243f4b1db374df4a40228dcc02cd48db4400"
-url = "https://github.com/mongodb/kingfisher/releases/download/v1.110.0/kingfisher-darwin-arm64.tgz"
-url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/497270491"
+checksum = "sha256:ee26a4050dfc9d9da223517ea539199a8d97528b7831660ed944c8723807c8ed"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.113.0/kingfisher-darwin-arm64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/510959130"
 provenance = "github-attestations"
-provenance_verified = true
 
 [tools."github:mongodb/kingfisher"."platforms.macos-x64"]
-checksum = "sha256:194e62ec10535a519ce3a2c08d8866342cb6b51af1df37bf04c35974cbbfe896"
-url = "https://github.com/mongodb/kingfisher/releases/download/v1.110.0/kingfisher-darwin-x64.tgz"
-url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/497270474"
+checksum = "sha256:f627b3ab9fce06b9289808ef4fbe0afcc4887bf2aa42ba6b78f5c5a8cb1891cd"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.113.0/kingfisher-darwin-x64.tgz"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/510959114"
+provenance = "github-attestations"
+
+[tools."github:mongodb/kingfisher"."platforms.windows-x64"]
+checksum = "sha256:790f318e680bd0b730052f3fb13f55560e265c11ce456e890578243459cf2f61"
+url = "https://github.com/mongodb/kingfisher/releases/download/v1.113.0/kingfisher-windows-x64.zip"
+url_api = "https://api.github.com/repos/mongodb/kingfisher/releases/assets/510958967"
 provenance = "github-attestations"
 
 [[tools.hk]]
-version = "1.54.0"
+version = "1.58.1"
 backend = "aqua:jdx/hk"
 
 [tools.hk."platforms.linux-arm64"]
