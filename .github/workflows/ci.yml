@@ -43,6 +43,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -76,6 +77,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -94,6 +97,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -116,10 +120,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+        with:
+          # Trivy is installed through mise (pinned in mise.lock) instead of
+          # letting trivy-action run its bundled setup-trivy composite, whose
+          # internal checkout does not set persist-credentials: false
+          # (Plumber ISSUE-307). Same rationale as Kingfisher in kingfisher.yml.
+          install_args: "aqua:aquasecurity/trivy"
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          # Trivy is already on PATH from the mise step above.
+          skip-setup-trivy: true
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'

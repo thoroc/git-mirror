@@ -6,6 +6,10 @@ shellcheck = "latest"
 "cargo:cargo-audit" = "latest"
 "cargo:cargo-tarpaulin" = "latest"
 "github:mongodb/kingfisher" = "latest"
+# Installed through mise in CI (see .github/workflows/ci.yml) so the Trivy scan
+# does not depend on aquasecurity/trivy-action pulling in its own composite
+# checkout step.
+"aqua:aquasecurity/trivy" = "latest"
 
 [hooks]
 enter = "mise install"
