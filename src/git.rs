@@ -18,6 +18,34 @@ fn git_binary() -> Result<&'static Path> {
     Ok(GIT.get_or_init(|| path).as_path())
 }
 
+/// Run git in `repo` and return the full process output.
+pub fn run(repo: &Path, args: &[&str]) -> Result<std::process::Output> {
+    let git = git_binary()?;
+
+    Command::new(git)
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .output()
+        .context("failed to run git")
+}
+
+/// Run git in `repo` and return its trimmed stdout, or `None` when the command
+/// fails (for example an empty repository with no `HEAD`).
+pub fn git_stdout(repo: &Path, args: &[&str]) -> Result<Option<String>> {
+    let output = run(repo, args)?;
+
+    if !output.status.success() {
+        return Ok(None);
+    }
+
+    Ok(Some(
+        String::from_utf8_lossy(&output.stdout)
+            .trim_end()
+            .to_string(),
+    ))
+}
+
 fn clone_repo_with_writer<W: Write>(
     repo: &str,
     local_path: &Path,

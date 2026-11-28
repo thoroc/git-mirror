@@ -1,3 +1,4 @@
+mod consolidate;
 mod fs;
 mod git;
 mod migrate;
@@ -93,6 +94,18 @@ struct MigrateArgs {
     #[arg(long = "exclude", value_name = "PREFIX")]
     exclude: Vec<String>,
 
+    /// Force the keeper checkout for a duplicate group (repeatable)
+    #[arg(long = "keep", value_name = "PATH")]
+    keep: Vec<String>,
+
+    /// Duplicate handling: report only, or consolidate unique work into the keeper
+    #[arg(long, value_enum, default_value_t = migrate::DuplicateMode::Report)]
+    duplicates: migrate::DuplicateMode,
+
+    /// Directory for consolidated sources and patches (default: <root>/.migration-archive)
+    #[arg(long, value_name = "DIR")]
+    archive_dir: Option<String>,
+
     /// Use full host domain in the target path (e.g. `github.com` instead of `github`)
     #[arg(long)]
     full_host: bool,
@@ -174,6 +187,28 @@ fn run_migrate(args: MigrateArgs) {
             .unwrap_or(migrate::ReportFormat::Csv)
     });
 
+    let mut keeps = Vec::with_capacity(args.keep.len());
+    for path in &args.keep {
+        match fs::expand_root(path) {
+            Ok(path) => keeps.push(path),
+            Err(error) => {
+                eprintln!("Error resolving keep path {path}: {error}");
+                process::exit(2);
+            }
+        }
+    }
+
+    let archive_root = match args.archive_dir {
+        Some(path) => match fs::expand_root(&path) {
+            Ok(path) => path,
+            Err(error) => {
+                eprintln!("Error resolving archive directory {path}: {error}");
+                process::exit(2);
+            }
+        },
+        None => root.join(".migration-archive"),
+    };
+
     let options = migrate::Options {
         root,
         apply: args.apply,
@@ -181,6 +216,9 @@ fn run_migrate(args: MigrateArgs) {
         force: args.force,
         full_host: args.full_host,
         excludes,
+        keeps,
+        duplicates: args.duplicates,
+        archive_root,
         format: args.format,
         report,
         report_format,
@@ -421,6 +459,35 @@ mod tests {
             Command::Migrate(migrate_args) => {
                 assert_eq!(migrate_args.report.as_deref(), Some("plan.csv"));
                 assert_eq!(migrate_args.report_format, None);
+            }
+            Command::Clone(_) => panic!("expected migrate"),
+        }
+    }
+
+    #[test]
+    fn test_migrate_duplicate_mode_args() {
+        use super::{Cli, Command};
+        use clap::Parser;
+
+        let cli = Cli::parse_from([
+            "git-mirror",
+            "migrate",
+            "--duplicates",
+            "consolidate",
+            "--archive-dir",
+            "/tmp/migration-archive",
+        ]);
+
+        match cli.command {
+            Command::Migrate(migrate_args) => {
+                assert_eq!(
+                    migrate_args.duplicates,
+                    super::migrate::DuplicateMode::Consolidate
+                );
+                assert_eq!(
+                    migrate_args.archive_dir.as_deref(),
+                    Some("/tmp/migration-archive")
+                );
             }
             Command::Clone(_) => panic!("expected migrate"),
         }

@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fs as stdfs;
 use std::io::{IsTerminal, Write};
@@ -5,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 
+use crate::consolidate;
 use crate::fs;
 use crate::git;
 use crate::util::{self, RemoteError};
@@ -73,6 +75,22 @@ impl std::fmt::Display for ReportFormat {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
+pub enum DuplicateMode {
+    #[default]
+    Report,
+    Consolidate,
+}
+
+impl std::fmt::Display for DuplicateMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            DuplicateMode::Report => "report",
+            DuplicateMode::Consolidate => "consolidate",
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Status {
     Move,
@@ -82,6 +100,8 @@ pub enum Status {
     Unsupported,
     Excluded,
     Duplicate,
+    Consolidate,
+    Consolidated,
     Collision,
     Conflict,
     Worktree,
@@ -100,6 +120,8 @@ impl Status {
             Status::Unsupported => "unsupported-remote",
             Status::Excluded => "excluded",
             Status::Duplicate => "duplicate",
+            Status::Consolidate => "consolidate",
+            Status::Consolidated => "consolidated",
             Status::Collision => "collision",
             Status::Conflict => "conflict",
             Status::Worktree => "worktree",
@@ -129,6 +151,8 @@ pub struct Summary {
     pub excluded: usize,
     pub conflicts: usize,
     pub duplicates: usize,
+    pub consolidate_planned: usize,
+    pub consolidated: usize,
     pub worktrees: usize,
     pub unparsable: usize,
     pub root: usize,
@@ -145,6 +169,8 @@ impl Summary {
             Status::Unsupported => self.unsupported += 1,
             Status::Excluded => self.excluded += 1,
             Status::Duplicate => self.duplicates += 1,
+            Status::Consolidate => self.consolidate_planned += 1,
+            Status::Consolidated => self.consolidated += 1,
             Status::Collision | Status::Conflict => self.conflicts += 1,
             Status::Worktree => self.worktrees += 1,
             Status::Unparsable => self.unparsable += 1,
@@ -161,9 +187,93 @@ pub struct Options {
     pub force: bool,
     pub full_host: bool,
     pub excludes: Vec<PathBuf>,
+    pub keeps: Vec<PathBuf>,
+    pub duplicates: DuplicateMode,
+    pub archive_root: PathBuf,
     pub format: Format,
     pub report: Option<PathBuf>,
     pub report_format: ReportFormat,
+}
+
+/// Metrics used to choose which checkout of a duplicate group to keep.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Metrics {
+    unique_commits: usize,
+    dirty: usize,
+    stashes: usize,
+    untracked: usize,
+    branches: usize,
+    last_commit: String,
+    detached: bool,
+    in_place: bool,
+    penalized: bool,
+}
+
+impl Metrics {
+    fn summary(&self) -> String {
+        let mut parts = vec![
+            format!("unique={}", self.unique_commits),
+            format!("dirty={}", self.dirty),
+            format!("stash={}", self.stashes),
+            format!("untracked={}", self.untracked),
+            format!("branches={}", self.branches),
+            format!(
+                "last={}",
+                if self.last_commit.is_empty() {
+                    "unknown"
+                } else {
+                    self.last_commit.as_str()
+                }
+            ),
+        ];
+
+        if self.detached {
+            parts.push("detached".to_string());
+        }
+
+        parts.join(" ")
+    }
+}
+
+/// A repository after the cheap part of classification (origin, target, and
+/// the statuses that need no further git work).
+#[derive(Clone, Debug)]
+struct Candidate {
+    path: PathBuf,
+    origin: Option<String>,
+    target: Option<PathBuf>,
+    remote_key: Option<String>,
+    status: Option<Status>,
+}
+
+struct DuplicateInfo {
+    keeper: PathBuf,
+    metrics: String,
+    status: Status,
+    detail: Option<String>,
+}
+
+impl DuplicateInfo {
+    fn new(keeper: PathBuf, metrics: String) -> Self {
+        Self {
+            keeper,
+            metrics,
+            status: Status::Duplicate,
+            detail: None,
+        }
+    }
+}
+
+#[derive(Default)]
+struct DuplicatePlan {
+    /// index -> duplicate details
+    duplicates: HashMap<usize, DuplicateInfo>,
+    /// index -> collision detail
+    collisions: HashMap<usize, String>,
+    /// keeper index -> (group size, metrics of the keeper)
+    keepers: HashMap<usize, (usize, String)>,
+    /// `--keep` paths that matched a group
+    used_keeps: Vec<PathBuf>,
 }
 
 /// Classify every repository under the root, optionally moving the ones that
@@ -171,17 +281,17 @@ pub struct Options {
 /// not abort the run.
 pub fn run(opts: &Options, out: &mut dyn Write, err: &mut dyn Write) -> Result<Summary> {
     let color = opts.format == Format::Text && std::io::stdout().is_terminal();
-    let repos = find_repos(&opts.root, opts.include_nested)?;
+    let candidates = scan(&opts.root, opts)?;
+    let plan = analyze_duplicates(&candidates, opts, err)?;
     let mut summary = Summary::default();
-    let mut claimed: HashMap<PathBuf, (String, PathBuf)> = HashMap::new();
     let mut entries = Vec::new();
 
     if opts.format == Format::Tsv {
         writeln!(out, "status\tcurrent\torigin\ttarget\tdetail")?;
     }
 
-    for current in repos {
-        let mut entry = classify(&current, opts, &mut claimed)?;
+    for (index, candidate) in candidates.iter().enumerate() {
+        let mut entry = build_entry(index, candidate, &plan, opts)?;
 
         if entry.status == Status::Move && opts.apply {
             match apply_move(&entry, &opts.root) {
@@ -228,96 +338,436 @@ fn entry(status: Status, current: &Path) -> Entry {
     }
 }
 
-fn classify(
-    current: &Path,
+fn scan(root: &Path, opts: &Options) -> Result<Vec<Candidate>> {
+    let repos = find_repos(root, opts.include_nested)?;
+    let mut candidates = Vec::with_capacity(repos.len());
+
+    for path in repos {
+        let mut candidate = Candidate {
+            path: path.clone(),
+            origin: None,
+            target: None,
+            remote_key: None,
+            status: None,
+        };
+
+        if path == root {
+            candidate.status = Some(Status::Root);
+            candidates.push(candidate);
+            continue;
+        }
+
+        if path.starts_with(&opts.archive_root) {
+            continue;
+        }
+
+        if is_excluded(&path, &opts.excludes) {
+            candidate.status = Some(Status::Excluded);
+            candidates.push(candidate);
+            continue;
+        }
+
+        let Some(origin) = git::origin_url(&path)? else {
+            candidate.status = Some(Status::NoOrigin);
+            candidates.push(candidate);
+            continue;
+        };
+
+        candidate.origin = Some(origin.clone());
+
+        match util::parse_remote(&origin) {
+            Ok(remote) => {
+                candidate.target = Some(fs::target_path(root, &remote, opts.full_host));
+                candidate.remote_key = Some(remote.key());
+            }
+            Err(RemoteError::LocalPath(_)) => candidate.status = Some(Status::Unsupported),
+            Err(RemoteError::Invalid(_)) => candidate.status = Some(Status::Unparsable),
+        }
+
+        candidates.push(candidate);
+    }
+
+    Ok(candidates)
+}
+
+fn analyze_duplicates(
+    candidates: &[Candidate],
     opts: &Options,
-    claimed: &mut HashMap<PathBuf, (String, PathBuf)>,
-) -> Result<Entry> {
-    if current == opts.root {
-        return Ok(entry(Status::Root, current));
+    err: &mut dyn Write,
+) -> Result<DuplicatePlan> {
+    let mut groups: HashMap<PathBuf, Vec<usize>> = HashMap::new();
+    for (index, candidate) in candidates.iter().enumerate() {
+        if candidate.status.is_none() {
+            if let Some(target) = &candidate.target {
+                groups.entry(target.clone()).or_default().push(index);
+            }
+        }
     }
 
-    if is_excluded(current, &opts.excludes) {
-        return Ok(entry(Status::Excluded, current));
-    }
+    let mut targets: Vec<PathBuf> = groups.keys().cloned().collect();
+    targets.sort();
 
-    let Some(origin) = git::origin_url(current)? else {
-        return Ok(entry(Status::NoOrigin, current));
-    };
+    let date = consolidate::today_utc();
+    let mut used_slugs: Vec<String> = Vec::new();
+    let mut plan = DuplicatePlan::default();
 
-    let remote = match util::parse_remote(&origin) {
-        Ok(remote) => remote,
-        Err(RemoteError::LocalPath(_)) => {
-            let mut entry = entry(Status::Unsupported, current);
-            entry.origin = Some(origin);
-            return Ok(entry);
+    for target in targets {
+        let group = &groups[&target];
+        if group.len() < 2 {
+            continue;
         }
-        Err(RemoteError::Invalid(_)) => {
-            let mut entry = entry(Status::Unparsable, current);
-            entry.origin = Some(origin);
-            return Ok(entry);
-        }
-    };
 
-    let target = fs::target_path(&opts.root, &remote, opts.full_host);
-    let key = remote.key();
-
-    if let Some((claimed_key, claimed_source)) = claimed.get(&target) {
-        let mut entry = entry(
-            if *claimed_key == key {
-                Status::Duplicate
+        // The same target with different remotes is a collision: only the
+        // first remote can occupy it.
+        let mut by_key: Vec<(String, Vec<usize>)> = Vec::new();
+        for &index in group {
+            let key = candidates[index].remote_key.clone().unwrap_or_default();
+            if let Some((_, indices)) = by_key
+                .iter_mut()
+                .find(|(candidate_key, _)| *candidate_key == key)
+            {
+                indices.push(index);
             } else {
-                Status::Collision
-            },
-            current,
+                by_key.push((key, vec![index]));
+            }
+        }
+
+        let (primary_key, primary) = &by_key[0];
+        for (key, indices) in by_key.iter().skip(1) {
+            for &index in indices {
+                plan.collisions
+                    .insert(index, format!("{primary_key} vs {key}"));
+            }
+        }
+
+        if primary.len() < 2 {
+            continue;
+        }
+
+        let metrics: Vec<Metrics> = primary
+            .iter()
+            .map(|&index| {
+                let candidate = &candidates[index];
+                let in_place = candidate.target.as_ref() == Some(&candidate.path);
+                metrics_for(&candidate.path, in_place)
+            })
+            .collect();
+
+        let forced = opts.keeps.iter().find_map(|keep| {
+            primary
+                .iter()
+                .position(|&index| paths_equal(&candidates[index].path, keep))
+                .map(|position| (position, keep))
+        });
+
+        let keeper_position = match forced {
+            Some((position, keep)) => {
+                plan.used_keeps.push(keep.clone());
+                position
+            }
+            None => {
+                let mut best = 0;
+                for position in 1..primary.len() {
+                    if compare_metrics(
+                        &metrics[position],
+                        &metrics[best],
+                        &candidates[primary[position]].path,
+                        &candidates[primary[best]].path,
+                    ) == Ordering::Greater
+                    {
+                        best = position;
+                    }
+                }
+                best
+            }
+        };
+
+        let keeper_index = primary[keeper_position];
+        let keeper_path = candidates[keeper_index].path.clone();
+        plan.keepers.insert(
+            keeper_index,
+            (primary.len(), metrics[keeper_position].summary()),
         );
-        entry.origin = Some(origin);
-        entry.target = Some(target);
-        entry.detail = Some(if *claimed_key == key {
-            claimed_source.display().to_string()
-        } else {
-            format!("{claimed_key} vs {key}")
+
+        for (position, &index) in primary.iter().enumerate() {
+            if position == keeper_position {
+                continue;
+            }
+
+            let mut info = DuplicateInfo::new(keeper_path.clone(), metrics[position].summary());
+
+            if opts.duplicates == DuplicateMode::Consolidate {
+                let source = &candidates[index].path;
+                let base_slug = consolidate::slug_for(source, &opts.root);
+                let slug = unique_slug(&base_slug, &mut used_slugs);
+                let archive_dir =
+                    consolidate::unique_archive_dir(&opts.archive_root.join(&date).join(&slug));
+
+                match consolidate::plan(
+                    source,
+                    &date,
+                    &slug,
+                    &archive_dir,
+                    metrics[position].dirty,
+                    metrics[position].untracked,
+                ) {
+                    Ok(consolidation) => {
+                        if !opts.apply {
+                            info.status = Status::Consolidate;
+                            info.detail = Some(format!(
+                                "would consolidate {}",
+                                consolidation.planned_detail(&keeper_path)
+                            ));
+                        } else {
+                            let has_nested = candidates.iter().any(|other| {
+                                other.path != *source && other.path.starts_with(source)
+                            });
+
+                            match consolidate::execute(
+                                &consolidation,
+                                &keeper_path,
+                                &opts.root,
+                                has_nested,
+                            ) {
+                                Ok(execution) => {
+                                    info.status = Status::Consolidated;
+                                    let mut detail = format!(
+                                        "consolidated {} ({} refs)",
+                                        consolidation.planned_detail(&keeper_path),
+                                        execution.imported
+                                    );
+                                    if let Some(note) = execution.note {
+                                        detail.push_str(&format!("; {note}"));
+                                    }
+                                    info.detail = Some(detail);
+                                }
+                                Err(error) => {
+                                    info.status = Status::Failed;
+                                    info.detail = Some(format!("consolidation failed: {error:#}"));
+                                    writeln!(
+                                        err,
+                                        "warning: consolidation of {} failed: {error:#}",
+                                        source.display()
+                                    )?;
+                                }
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        info.status = Status::Failed;
+                        info.detail = Some(format!("consolidation planning failed: {error:#}"));
+                        writeln!(
+                            err,
+                            "warning: cannot plan consolidation of {}: {error:#}",
+                            source.display()
+                        )?;
+                    }
+                }
+            }
+
+            plan.duplicates.insert(index, info);
+        }
+    }
+
+    for keep in &opts.keeps {
+        if !plan.used_keeps.iter().any(|used| paths_equal(used, keep)) {
+            writeln!(
+                err,
+                "warning: --keep {} does not match a checkout in a duplicate group",
+                keep.display()
+            )?;
+        }
+    }
+
+    Ok(plan)
+}
+
+fn build_entry(
+    index: usize,
+    candidate: &Candidate,
+    plan: &DuplicatePlan,
+    opts: &Options,
+) -> Result<Entry> {
+    if let Some(status) = candidate.status {
+        let mut entry = entry(status, &candidate.path);
+        entry.origin = candidate.origin.clone();
+        return Ok(entry);
+    }
+
+    let target = candidate
+        .target
+        .as_ref()
+        .ok_or_else(|| anyhow!("candidate has no target"))?;
+
+    if let Some(detail) = plan.collisions.get(&index) {
+        let mut entry = entry(Status::Collision, &candidate.path);
+        entry.origin = candidate.origin.clone();
+        entry.target = Some(target.clone());
+        entry.detail = Some(detail.clone());
+        return Ok(entry);
+    }
+
+    if let Some(info) = plan.duplicates.get(&index) {
+        let mut entry = entry(info.status, &candidate.path);
+        entry.origin = candidate.origin.clone();
+        entry.target = Some(target.clone());
+        entry.detail = Some(match info.status {
+            Status::Duplicate => {
+                format!("keeping {} ({})", info.keeper.display(), info.metrics)
+            }
+            _ => info.detail.clone().unwrap_or_default(),
         });
         return Ok(entry);
     }
 
-    claimed.insert(target.clone(), (key.clone(), current.to_path_buf()));
+    let keeper_detail = plan
+        .keepers
+        .get(&index)
+        .map(|(count, metrics)| format!("keeper of {count} checkouts: {metrics}"));
 
-    if current == target {
-        let mut entry = entry(Status::Ok, current);
-        entry.origin = Some(origin);
-        entry.target = Some(target);
+    if &candidate.path == target {
+        let mut entry = entry(Status::Ok, &candidate.path);
+        entry.origin = candidate.origin.clone();
+        entry.target = Some(target.clone());
+        entry.detail = keeper_detail;
         return Ok(entry);
     }
 
     if target.exists() || target.symlink_metadata().is_ok() {
-        let same_remote = git::origin_url(&target)?
+        let key = candidate.remote_key.as_deref().unwrap_or("");
+        let same_remote = git::origin_url(target)?
             .and_then(|url| util::parse_remote(&url).ok())
             .map(|existing| existing.key() == key)
             .unwrap_or(false);
 
-        let mut entry = entry(Status::Conflict, current);
-        entry.origin = Some(origin);
-        entry.target = Some(target);
-        entry.detail = Some(if same_remote {
+        let mut detail = if same_remote {
             " with the same remote".to_string()
         } else {
-            format!(" (from {})", current.display())
-        });
+            format!(" (from {})", candidate.path.display())
+        };
+        if let Some(keeper_detail) = &keeper_detail {
+            detail = format!("{detail}; {keeper_detail}");
+        }
+
+        let mut entry = entry(Status::Conflict, &candidate.path);
+        entry.origin = candidate.origin.clone();
+        entry.target = Some(target.clone());
+        entry.detail = Some(detail);
         return Ok(entry);
     }
 
-    if !opts.force && has_linked_worktrees(current) {
-        let mut entry = entry(Status::Worktree, current);
-        entry.origin = Some(origin);
-        entry.target = Some(target);
+    if !opts.force && has_linked_worktrees(&candidate.path) {
+        let mut entry = entry(Status::Worktree, &candidate.path);
+        entry.origin = candidate.origin.clone();
+        entry.target = Some(target.clone());
+        entry.detail = keeper_detail;
         return Ok(entry);
     }
 
-    let mut entry = entry(Status::Move, current);
-    entry.origin = Some(origin);
-    entry.target = Some(target);
+    let mut entry = entry(Status::Move, &candidate.path);
+    entry.origin = candidate.origin.clone();
+    entry.target = Some(target.clone());
+    entry.detail = keeper_detail;
     Ok(entry)
+}
+
+fn metrics_for(path: &Path, in_place: bool) -> Metrics {
+    Metrics {
+        unique_commits: unique_commit_count(path),
+        dirty: line_count(path, &["status", "--porcelain", "--untracked-files=no"]),
+        stashes: line_count(path, &["stash", "list"]),
+        untracked: line_count(path, &["ls-files", "--others", "--exclude-standard"]),
+        branches: line_count(path, &["for-each-ref", "--format=%(refname)", "refs/heads"]),
+        last_commit: git::git_stdout(path, &["log", "-1", "--format=%cs"])
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
+        detached: git::git_stdout(path, &["symbolic-ref", "-q", "HEAD"])
+            .ok()
+            .flatten()
+            .is_none(),
+        in_place,
+        penalized: path_penalized(path),
+    }
+}
+
+fn line_count(path: &Path, args: &[&str]) -> usize {
+    git::git_stdout(path, args)
+        .ok()
+        .flatten()
+        .map(|output| output.lines().count())
+        .unwrap_or(0)
+}
+
+fn unique_commit_count(path: &Path) -> usize {
+    let count = |args: &[&str]| {
+        git::git_stdout(path, args)
+            .ok()
+            .flatten()
+            .and_then(|output| output.trim().parse::<usize>().ok())
+    };
+
+    count(&[
+        "rev-list",
+        "--count",
+        "--branches",
+        "HEAD",
+        "--not",
+        "--remotes=origin",
+    ])
+    .or_else(|| count(&["rev-list", "--count", "--branches", "HEAD"]))
+    .unwrap_or(0)
+}
+
+fn compare_metrics(a: &Metrics, b: &Metrics, a_path: &Path, b_path: &Path) -> Ordering {
+    a.unique_commits
+        .cmp(&b.unique_commits)
+        // Uncommitted tracked work: a dirty file and a stash both represent
+        // work that would be lost, so compare their sum first.
+        .then_with(|| (a.dirty + a.stashes).cmp(&(b.dirty + b.stashes)))
+        .then_with(|| a.stashes.cmp(&b.stashes))
+        .then_with(|| a.in_place.cmp(&b.in_place))
+        .then_with(|| a.untracked.cmp(&b.untracked))
+        .then_with(|| a.branches.cmp(&b.branches))
+        .then_with(|| a.last_commit.cmp(&b.last_commit))
+        .then_with(|| b.penalized.cmp(&a.penalized))
+        .then_with(|| b_path.as_os_str().cmp(a_path.as_os_str()))
+}
+
+fn path_penalized(path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    ["-dup", "-test", "-old", "-copy", "-backup", ".bak", ".old"]
+        .iter()
+        .any(|suffix| name.contains(*suffix))
+}
+
+fn paths_equal(a: &Path, b: &Path) -> bool {
+    if a == b {
+        return true;
+    }
+
+    match (stdfs::canonicalize(a), stdfs::canonicalize(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    }
+}
+
+fn unique_slug(base: &str, used: &mut Vec<String>) -> String {
+    let mut candidate = base.to_string();
+    let mut suffix = 2;
+
+    while used.iter().any(|slug| slug == &candidate) {
+        candidate = format!("{base}-{suffix}");
+        suffix += 1;
+    }
+
+    used.push(candidate.clone());
+    candidate
 }
 
 fn is_excluded(path: &Path, excludes: &[PathBuf]) -> bool {
@@ -371,7 +821,9 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>, descend_into_repos: bool) {
             continue;
         }
 
-        if entry.file_name().to_string_lossy() == ".git" {
+        let file_name = entry.file_name();
+        let name = file_name.to_string_lossy();
+        if name == ".git" || name == ".migration-archive" {
             continue;
         }
 
@@ -408,21 +860,8 @@ fn apply_move(entry: &Entry, root: &Path) -> Result<()> {
         )
     })?;
 
-    prune_empty_parents(&entry.current, root);
+    fs::prune_empty_parents(&entry.current, root);
     Ok(())
-}
-
-fn prune_empty_parents(source: &Path, root: &Path) {
-    let mut dir = source.parent();
-    while let Some(candidate) = dir {
-        if candidate == root {
-            break;
-        }
-        if stdfs::remove_dir(candidate).is_err() {
-            break;
-        }
-        dir = candidate.parent();
-    }
 }
 
 fn paint(text: &str, code: &str, enabled: bool) -> String {
@@ -534,9 +973,23 @@ fn text_line(entry: &Entry, color: bool) -> String {
     let skip = paint("SKIP", YELLOW, color);
 
     match entry.status {
-        Status::Move => format!("{} {current} -> {target}", paint("PLAN", CYAN, color)),
+        Status::Move => {
+            let line = format!("{} {current} -> {target}", paint("PLAN", CYAN, color));
+            if detail.is_empty() {
+                line
+            } else {
+                format!("{line} ({detail})")
+            }
+        }
         Status::Moved => format!("{} {current} -> {target}", paint("MOVE", GREEN, color)),
-        Status::Ok => paint(&format!("  ok: {current}"), DIM, color),
+        Status::Ok => {
+            let line = paint(&format!("  ok: {current}"), DIM, color);
+            if detail.is_empty() {
+                line
+            } else {
+                format!("{line} ({detail})")
+            }
+        }
         Status::Root => paint(&format!("  skip projects root repo: {current}"), DIM, color),
         Status::NoOrigin => format!("{skip} no origin remote: {current}"),
         Status::Unsupported => format!("{skip} unsupported remote ({origin}): {current}"),
@@ -544,11 +997,27 @@ fn text_line(entry: &Entry, color: bool) -> String {
         Status::Duplicate => {
             format!("{skip} duplicate checkout of the same remote (keeping {detail}): {current}")
         }
+        Status::Consolidate => {
+            format!("{} {current} ({detail})", paint("CONSOLIDATE", CYAN, color))
+        }
+        Status::Consolidated => {
+            format!(
+                "{} {current} ({detail})",
+                paint("CONSOLIDATED", GREEN, color)
+            )
+        }
         Status::Collision => {
             format!("{skip} target collision, different remotes ({detail}): {target}")
         }
         Status::Conflict => format!("{skip} target already exists{detail}: {target}"),
-        Status::Worktree => format!("{skip} linked worktrees present: {current}"),
+        Status::Worktree => {
+            let line = format!("{skip} linked worktrees present: {current}");
+            if detail.is_empty() {
+                line
+            } else {
+                format!("{line} ({detail})")
+            }
+        }
         Status::Unparsable => format!("{skip} unparsable origin ({origin}): {current}"),
         Status::Failed => format!(
             "{} {current} -> {target}: {detail}",
@@ -571,6 +1040,16 @@ fn print_summary(summary: &Summary, apply: bool, out: &mut dyn Write) -> Result<
     }
 
     writeln!(out, "Already in place: {}", summary.already)?;
+    if summary.consolidated > 0 {
+        writeln!(out, "Consolidated: {}", summary.consolidated)?;
+    }
+    if summary.consolidate_planned > 0 {
+        writeln!(
+            out,
+            "Consolidation planned: {}",
+            summary.consolidate_planned
+        )?;
+    }
     writeln!(
         out,
         "Skipped: {} no origin, {} unsupported remote, {} excluded, {} conflicts, {} duplicates, {} linked worktrees, {} unparsable, {} root repo",
@@ -655,6 +1134,16 @@ fn write_markdown_summary<W: Write>(out: &mut W, summary: &Summary, apply: bool)
     }
 
     writeln!(out, "- **Already in place:** {}", summary.already)?;
+    if summary.consolidated > 0 {
+        writeln!(out, "- **Consolidated:** {}", summary.consolidated)?;
+    }
+    if summary.consolidate_planned > 0 {
+        writeln!(
+            out,
+            "- **Consolidation planned:** {}",
+            summary.consolidate_planned
+        )?;
+    }
     writeln!(
         out,
         "- **Skipped:** {} no origin, {} unsupported remote, {} excluded, {} conflicts, {} duplicates, {} linked worktrees, {} unparsable, {} root repo",
@@ -722,6 +1211,12 @@ fn write_json_report<W: Write>(
     writeln!(out, "    \"excluded\": {},", summary.excluded)?;
     writeln!(out, "    \"conflicts\": {},", summary.conflicts)?;
     writeln!(out, "    \"duplicates\": {},", summary.duplicates)?;
+    writeln!(
+        out,
+        "    \"consolidate_planned\": {},",
+        summary.consolidate_planned
+    )?;
+    writeln!(out, "    \"consolidated\": {},", summary.consolidated)?;
     writeln!(out, "    \"worktrees\": {},", summary.worktrees)?;
     writeln!(out, "    \"unparsable\": {},", summary.unparsable)?;
     writeln!(out, "    \"root_repos\": {},", summary.root)?;
@@ -773,9 +1268,10 @@ fn write_json_report<W: Write>(
 #[cfg(test)]
 mod tests {
     use super::{
-        find_repos, is_excluded, run, write_report, Entry, Format, Options, ReportFormat, Status,
-        Summary,
+        compare_metrics, find_repos, is_excluded, run, write_report, DuplicateMode, Entry, Format,
+        Metrics, Options, ReportFormat, Status, Summary,
     };
+    use std::cmp::Ordering;
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::process::Command;
@@ -826,6 +1322,129 @@ mod tests {
         }
     }
 
+    fn commit_file(repo: &Path, name: &str, contents: &str) {
+        fs::write(repo.join(name), contents).expect("write tracked file");
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["add", name])
+            .status()
+            .expect("run git add");
+        assert!(status.success(), "git add failed for {}", repo.display());
+
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args([
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.com",
+                "commit",
+                "-q",
+                "-m",
+                "base",
+            ])
+            .status()
+            .expect("run git commit");
+        assert!(status.success(), "git commit failed for {}", repo.display());
+    }
+
+    fn set_origin_head(repo: &Path) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["update-ref", "refs/remotes/origin/main", "HEAD"])
+            .status()
+            .expect("run git update-ref");
+        assert!(
+            status.success(),
+            "git update-ref failed for {}",
+            repo.display()
+        );
+    }
+
+    fn git_line(repo: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .expect("run git");
+        assert!(
+            output.status.success(),
+            "git {:?} failed for {}",
+            args,
+            repo.display()
+        );
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    fn git_ok(repo: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .status()
+            .expect("run git");
+        assert!(
+            status.success(),
+            "git {:?} failed for {}",
+            args,
+            repo.display()
+        );
+    }
+
+    fn consolidate_fixture(name: &str) -> (PathBuf, PathBuf, PathBuf, String) {
+        let root = unique_root(name);
+        let keeper = at(&root, &["old", "a"]);
+        let loser = at(&root, &["old", "b"]);
+        let origin = "git@github.com:org/repo.git";
+
+        init_repo(&keeper, Some(origin));
+        init_repo(&loser, Some(origin));
+        commit_file(&keeper, "base.txt", "base");
+        commit_file(&loser, "base.txt", "base");
+        set_origin_head(&keeper);
+        set_origin_head(&loser);
+
+        // The keeper has two local-only commits, so it wins the score.
+        commit_file(&keeper, "keeper1.txt", "one");
+        commit_file(&keeper, "keeper2.txt", "two");
+
+        // The loser has a unique feature branch, a stash, dirty tracked work
+        // and an untracked file.
+        let base_branch = git_line(&loser, &["rev-parse", "--abbrev-ref", "HEAD"]);
+        git_ok(&loser, &["checkout", "-q", "-b", "feature"]);
+        commit_file(&loser, "feature.txt", "feature");
+        let unique_oid = git_line(&loser, &["rev-parse", "HEAD"]);
+        git_ok(&loser, &["checkout", "-q", &base_branch]);
+
+        fs::write(loser.join("base.txt"), "stashed").expect("stash change");
+        let status = Command::new("git")
+            .arg("-C")
+            .arg(&loser)
+            .args([
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.com",
+                "stash",
+                "push",
+                "-q",
+                "-m",
+                "work",
+            ])
+            .status()
+            .expect("run git stash");
+        assert!(status.success(), "git stash failed for {}", loser.display());
+
+        fs::write(loser.join("base.txt"), "dirty").expect("dirty change");
+        fs::write(loser.join("untracked.txt"), "untracked").expect("untracked file");
+
+        (root, keeper, loser, unique_oid)
+    }
+
     fn has_git() -> bool {
         Command::new("git")
             .arg("--version")
@@ -842,6 +1461,9 @@ mod tests {
             force: false,
             full_host: false,
             excludes: Vec::new(),
+            keeps: Vec::new(),
+            duplicates: DuplicateMode::Report,
+            archive_root: root.join(".migration-archive"),
             format: Format::Tsv,
             report: None,
             report_format: ReportFormat::Tsv,
@@ -1014,6 +1636,245 @@ mod tests {
     fn test_markdown_field_escapes() {
         assert_eq!(super::markdown_field("a|b"), "a\\|b");
         assert_eq!(super::markdown_field("a\nb"), "a<br>b");
+    }
+
+    fn metrics(unique: usize, dirty: usize, stashes: usize) -> Metrics {
+        Metrics {
+            unique_commits: unique,
+            dirty,
+            stashes,
+            ..Metrics::default()
+        }
+    }
+
+    #[test]
+    fn test_keeper_prefers_unique_work() {
+        let clean = metrics(0, 0, 0);
+        let work = metrics(2, 1, 1);
+        let clean_path = PathBuf::from("/clean");
+        let work_path = PathBuf::from("/work");
+
+        assert_eq!(
+            compare_metrics(&work, &clean, &work_path, &clean_path),
+            Ordering::Greater
+        );
+        assert_eq!(
+            compare_metrics(&clean, &work, &clean_path, &work_path),
+            Ordering::Less
+        );
+    }
+
+    #[test]
+    fn test_keeper_tie_breaks() {
+        let mut in_place = metrics(0, 0, 0);
+        in_place.in_place = true;
+        let clean = metrics(0, 0, 0);
+
+        assert_eq!(
+            compare_metrics(&in_place, &clean, Path::new("/z"), Path::new("/a")),
+            Ordering::Greater
+        );
+        // Equal metrics: the lexicographically smaller path wins.
+        assert_eq!(
+            compare_metrics(&clean, &clean, Path::new("/a"), Path::new("/b")),
+            Ordering::Greater
+        );
+    }
+
+    #[test]
+    fn test_keeper_balances_dirty_and_stashes() {
+        let dirty = metrics(0, 4, 0);
+        let stashed = metrics(0, 3, 1);
+
+        // dirty + stash is 4 for both; the checkout with a stash wins.
+        assert_eq!(
+            compare_metrics(&stashed, &dirty, Path::new("/b"), Path::new("/a")),
+            Ordering::Greater
+        );
+    }
+
+    #[test]
+    fn test_duplicate_keeper_scores_and_keep_override() {
+        if !has_git() {
+            return;
+        }
+
+        let root = unique_root("keeper");
+        let clean = at(&root, &["old", "a"]);
+        let dirty = at(&root, &["old", "b"]);
+        let origin = "git@github.com:org/repo.git";
+
+        init_repo(&clean, Some(origin));
+        init_repo(&dirty, Some(origin));
+        commit_file(&clean, "tracked.txt", "one");
+        commit_file(&dirty, "tracked.txt", "one");
+        fs::write(dirty.join("tracked.txt"), "two").expect("dirty file");
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let summary = run(&options(&root), &mut out, &mut err).expect("dry run");
+        assert_eq!(summary.planned, 1);
+        assert_eq!(summary.duplicates, 1);
+
+        let rows = tsv_rows(&out);
+        let row_for = |path: &Path| {
+            rows.iter()
+                .find(|row| Path::new(&row[1]) == path)
+                .unwrap_or_else(|| panic!("missing row for {}: {rows:?}", path.display()))
+        };
+
+        assert_eq!(row_for(&dirty)[0], "move");
+        assert!(row_for(&dirty)[4].contains("keeper of 2 checkouts:"));
+        assert!(row_for(&dirty)[4].contains("dirty=1"));
+        assert_eq!(row_for(&clean)[0], "duplicate");
+        assert!(row_for(&clean)[4].contains("dirty=0"));
+
+        let mut opts = options(&root);
+        opts.keeps = vec![clean.clone()];
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let summary = run(&opts, &mut out, &mut err).expect("dry run with --keep");
+        assert_eq!(summary.planned, 1);
+        assert_eq!(summary.duplicates, 1);
+
+        let rows = tsv_rows(&out);
+        let row_for = |path: &Path| {
+            rows.iter()
+                .find(|row| Path::new(&row[1]) == path)
+                .unwrap_or_else(|| panic!("missing row for {}: {rows:?}", path.display()))
+        };
+
+        assert_eq!(row_for(&clean)[0], "move");
+        assert_eq!(row_for(&dirty)[0], "duplicate");
+        assert!(row_for(&dirty)[4].contains("dirty=1"));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_target_collision_between_hosts() {
+        if !has_git() {
+            return;
+        }
+
+        let root = unique_root("collision");
+        let first = at(&root, &["old", "a"]);
+        let second = at(&root, &["old", "b"]);
+
+        init_repo(&first, Some("git@bitbucket.org:org/repo.git"));
+        init_repo(
+            &second,
+            Some("ssh://git@bitbucket.uk.example.com/org/repo.git"),
+        );
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let summary = run(&options(&root), &mut out, &mut err).expect("dry run");
+
+        assert_eq!(summary.planned, 1);
+        assert_eq!(summary.conflicts, 1);
+        let rows = tsv_rows(&out);
+        assert_eq!(rows.iter().filter(|row| row[0] == "move").count(), 1);
+        assert_eq!(rows.iter().filter(|row| row[0] == "collision").count(), 1);
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_consolidate_duplicates_dry_run() {
+        if !has_git() {
+            return;
+        }
+
+        let (root, keeper, loser, _) = consolidate_fixture("consolidate-dry");
+        let mut opts = options(&root);
+        opts.duplicates = DuplicateMode::Consolidate;
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let summary = run(&opts, &mut out, &mut err).expect("consolidation plan");
+
+        assert_eq!(summary.consolidate_planned, 1);
+        assert_eq!(summary.duplicates, 0);
+        assert!(loser.is_dir());
+        assert!(!root.join(".migration-archive").exists());
+        assert!(git_line(
+            &keeper,
+            &[
+                "for-each-ref",
+                "--format=%(refname)",
+                "refs/heads/migration"
+            ]
+        )
+        .is_empty());
+
+        let rows = tsv_rows(&out);
+        let consolidate = rows
+            .iter()
+            .find(|row| row[0] == "consolidate")
+            .unwrap_or_else(|| panic!("missing consolidate row: {rows:?}"));
+        assert!(consolidate[4].contains("would consolidate"));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_consolidate_duplicates_apply() {
+        if !has_git() {
+            return;
+        }
+
+        let (root, keeper, loser, unique_oid) = consolidate_fixture("consolidate-apply");
+        let mut opts = options(&root);
+        opts.duplicates = DuplicateMode::Consolidate;
+        opts.apply = true;
+
+        let mut out = Vec::new();
+        let mut err = Vec::new();
+        let summary = run(&opts, &mut out, &mut err).expect("consolidation");
+
+        assert_eq!(summary.moved, 1);
+        assert_eq!(summary.consolidated, 1);
+        assert_eq!(summary.duplicates, 0);
+
+        let moved_keeper = at(&root, &["github", "org", "repo"]);
+        assert!(moved_keeper.is_dir());
+        assert!(!loser.exists());
+
+        let refs = git_line(
+            &moved_keeper,
+            &[
+                "for-each-ref",
+                "--format=%(refname) %(objectname)",
+                "refs/heads/migration",
+            ],
+        );
+        assert!(refs.contains(&unique_oid), "refs: {refs}");
+        assert!(refs.contains("stash-0"), "refs: {refs}");
+
+        let archive_root = root.join(".migration-archive");
+        let date_dir = fs::read_dir(&archive_root)
+            .expect("archive root")
+            .next()
+            .expect("date entry")
+            .expect("date")
+            .path();
+        let slug_dir = fs::read_dir(&date_dir)
+            .expect("date dir")
+            .next()
+            .expect("slug entry")
+            .expect("slug")
+            .path();
+
+        assert!(slug_dir.join("manifest.txt").is_file());
+        assert!(slug_dir.join("worktree.patch").is_file());
+        assert!(slug_dir.join("untracked").join("untracked.txt").is_file());
+        assert!(slug_dir.join("source").is_dir());
+        assert!(fs::read_to_string(slug_dir.join("worktree.patch"))
+            .expect("patch")
+            .contains("dirty"));
+
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
