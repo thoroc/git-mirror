@@ -788,6 +788,20 @@ mod tests {
         root
     }
 
+    /// Join path segments without ever embedding `/` or `\` in a single
+    /// segment, so tests compare the same components on every platform.
+    fn at(root: &Path, segments: &[&str]) -> PathBuf {
+        let mut path = root.to_path_buf();
+        for segment in segments {
+            path.push(segment);
+        }
+        path
+    }
+
+    fn touch_repo(path: &Path) {
+        fs::create_dir_all(path.join(".git")).expect("create .git");
+    }
+
     fn init_repo(path: &Path, origin: Option<&str>) {
         fs::create_dir_all(path).expect("create repo dir");
         let status = Command::new("git")
@@ -856,10 +870,10 @@ mod tests {
     #[test]
     fn test_find_repos_deepest_first() {
         let root = unique_root("find");
-        let parent = root.join("parent");
-        let child = parent.join("child");
-        init_repo(&parent, None);
-        init_repo(&child, None);
+        let parent = at(&root, &["parent"]);
+        let child = at(&parent, &["child"]);
+        touch_repo(&parent);
+        touch_repo(&child);
 
         let repos = find_repos(&root, true).expect("find");
         assert_eq!(repos, vec![child.clone(), parent.clone()]);
@@ -1011,45 +1025,45 @@ mod tests {
         let root = unique_root("migrate");
 
         init_repo(
-            &root.join("old/a/repo1"),
+            &at(&root, &["old", "a", "repo1"]),
             Some("git@bitbucket.org:pplcs/repo1.git"),
         );
         init_repo(
-            &root.join("old/b/repo2"),
+            &at(&root, &["old", "b", "repo2"]),
             Some("https://gitlab.com/group/sub/project.git"),
         );
         init_repo(
-            &root.join("old/c/duplicate"),
+            &at(&root, &["old", "c", "duplicate"]),
             Some("git@bitbucket.org:pplcs/repo1.git"),
         );
         init_repo(
-            &root.join("old/d/googlesource"),
+            &at(&root, &["old", "d", "googlesource"]),
             Some("https://go.googlesource.com/crypto"),
         );
-        init_repo(&root.join("old/e/no-origin"), None);
+        init_repo(&at(&root, &["old", "e", "no-origin"]), None);
         init_repo(
-            &root.join("old/f/parent"),
+            &at(&root, &["old", "f", "parent"]),
             Some("git@github.com:org/parent.git"),
         );
         init_repo(
-            &root.join("old/f/parent/kid"),
+            &at(&root, &["old", "f", "parent", "kid"]),
             Some("git@github.com:org/kid.git"),
         );
         init_repo(
-            &root.join("old/g/conflict"),
+            &at(&root, &["old", "g", "conflict"]),
             Some("git@github.com:org/conflict.git"),
         );
         init_repo(
-            &root.join("github/org/conflict"),
+            &at(&root, &["github", "org", "conflict"]),
             Some("git@github.com:other/conflict.git"),
         );
         init_repo(
-            &root.join("github/org/ok"),
+            &at(&root, &["github", "org", "ok"]),
             Some("git@github.com:org/ok.git"),
         );
 
         // Dry run: nothing moves.
-        let report = root.join("plan.tsv");
+        let report = at(&root, &["plan.tsv"]);
         let mut dry = options(&root);
         dry.report = Some(report.clone());
         let mut out = Vec::new();
@@ -1060,32 +1074,33 @@ mod tests {
         assert_eq!(summary.no_origin, 1);
         assert_eq!(summary.conflicts, 1);
         assert_eq!(summary.already, 1);
-        assert!(root.join("old/a/repo1").is_dir());
+        assert!(at(&root, &["old", "a", "repo1"]).is_dir());
 
         let plan = fs::read_to_string(&report).expect("read report");
         assert!(plan.starts_with("status\tcurrent\torigin\ttarget\tdetail\n"));
         assert!(plan.lines().any(|line| line.starts_with("move\t")));
 
         let rows = tsv_rows(&out);
-        let row = |path: &str| {
+        let row = |segments: &[&str]| {
+            let expected = at(&root, segments);
             rows.iter()
-                .find(|row| row[1].ends_with(path))
-                .unwrap_or_else(|| panic!("missing row for {path}: {rows:?}"))
+                .find(|row| Path::new(&row[1]) == expected.as_path())
+                .unwrap_or_else(|| panic!("missing row for {}: {rows:?}", expected.display()))
         };
 
-        assert_eq!(row("old/a/repo1")[0], "move");
+        assert_eq!(row(&["old", "a", "repo1"])[0], "move");
         assert_eq!(
-            row("old/a/repo1")[3],
-            root.join("bitbucket/pplcs/repo1").display().to_string()
+            Path::new(&row(&["old", "a", "repo1"])[3]),
+            at(&root, &["bitbucket", "pplcs", "repo1"]).as_path()
         );
         assert_eq!(
-            row("old/d/googlesource")[3],
-            root.join("googlesource/crypto").display().to_string()
+            Path::new(&row(&["old", "d", "googlesource"])[3]),
+            at(&root, &["googlesource", "crypto"]).as_path()
         );
-        assert_eq!(row("old/c/duplicate")[0], "duplicate");
-        assert_eq!(row("old/e/no-origin")[0], "no-origin");
-        assert_eq!(row("old/g/conflict")[0], "conflict");
-        assert_eq!(row("github/org/ok")[0], "ok");
+        assert_eq!(row(&["old", "c", "duplicate"])[0], "duplicate");
+        assert_eq!(row(&["old", "e", "no-origin"])[0], "no-origin");
+        assert_eq!(row(&["old", "g", "conflict"])[0], "conflict");
+        assert_eq!(row(&["github", "org", "ok"])[0], "ok");
 
         // Apply.
         let mut opts = options(&root);
@@ -1096,14 +1111,14 @@ mod tests {
         // The misplaced `github/org/conflict` moves out of the way first, so
         // `old/g/conflict` can then take its place in the same run.
         assert_eq!(summary.moved, 6);
-        assert!(root.join("bitbucket/pplcs/repo1").is_dir());
-        assert!(root.join("gitlab/group/sub/project").is_dir());
-        assert!(root.join("googlesource/crypto").is_dir());
-        assert!(root.join("github/org/parent").is_dir());
-        assert!(root.join("github/other/conflict").is_dir());
-        assert!(root.join("github/org/conflict").is_dir());
-        assert!(!root.join("old/a").exists());
-        assert!(!root.join("old/b").exists());
+        assert!(at(&root, &["bitbucket", "pplcs", "repo1"]).is_dir());
+        assert!(at(&root, &["gitlab", "group", "sub", "project"]).is_dir());
+        assert!(at(&root, &["googlesource", "crypto"]).is_dir());
+        assert!(at(&root, &["github", "org", "parent"]).is_dir());
+        assert!(at(&root, &["github", "other", "conflict"]).is_dir());
+        assert!(at(&root, &["github", "org", "conflict"]).is_dir());
+        assert!(!at(&root, &["old", "a"]).exists());
+        assert!(!at(&root, &["old", "b"]).exists());
 
         let _ = fs::remove_dir_all(&root);
     }
