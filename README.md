@@ -194,12 +194,16 @@ Options:
   This includes vendored clones, so review the dry run before applying.
 - `--force` - Move repositories that have linked worktrees (those worktrees will break).
 - `--exclude <PREFIX>` - Skip repositories at or under a path prefix (repeatable).
+- `--keep <PATH>` - Force the keeper checkout for a duplicate group (repeatable).
 - `--full-host` - Use the full host domain in the target path.
 
 Repositories are processed deepest-first. Existing targets are never overwritten:
 a target that already exists is reported as a conflict and the source is left in
-place. Multiple checkouts of the same remote are reported as duplicates and only
-the first one is kept.
+place. Multiple checkouts of the same remote are scored before one is kept:
+unique commits (not reachable from `origin`), uncommitted tracked work (dirty
+files plus stashes), in-place location, untracked files, branches, last commit
+date and path heuristics. The `detail` column shows those metrics for each
+checkout, and `--keep <PATH>` overrides the choice.
 
 Typical workflow:
 

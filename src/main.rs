@@ -93,6 +93,10 @@ struct MigrateArgs {
     #[arg(long = "exclude", value_name = "PREFIX")]
     exclude: Vec<String>,
 
+    /// Force the keeper checkout for a duplicate group (repeatable)
+    #[arg(long = "keep", value_name = "PATH")]
+    keep: Vec<String>,
+
     /// Use full host domain in the target path (e.g. `github.com` instead of `github`)
     #[arg(long)]
     full_host: bool,
@@ -174,6 +178,17 @@ fn run_migrate(args: MigrateArgs) {
             .unwrap_or(migrate::ReportFormat::Csv)
     });
 
+    let mut keeps = Vec::with_capacity(args.keep.len());
+    for path in &args.keep {
+        match fs::expand_root(path) {
+            Ok(path) => keeps.push(path),
+            Err(error) => {
+                eprintln!("Error resolving keep path {path}: {error}");
+                process::exit(2);
+            }
+        }
+    }
+
     let options = migrate::Options {
         root,
         apply: args.apply,
@@ -181,6 +196,7 @@ fn run_migrate(args: MigrateArgs) {
         force: args.force,
         full_host: args.full_host,
         excludes,
+        keeps,
         format: args.format,
         report,
         report_format,
