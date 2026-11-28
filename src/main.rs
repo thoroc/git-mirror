@@ -77,14 +77,9 @@ struct MigrateArgs {
     #[arg(long, value_name = "FILE")]
     report: Option<String>,
 
-    /// Report format: text, tsv or json
-    #[arg(
-        long,
-        value_enum,
-        default_value_t = migrate::ReportFormat::Tsv,
-        requires = "report"
-    )]
-    report_format: migrate::ReportFormat,
+    /// Report format (default: inferred from FILE extension, else csv)
+    #[arg(long, value_enum, requires = "report")]
+    report_format: Option<migrate::ReportFormat>,
 
     /// Also scan inside repositories for nested repositories (including vendored clones)
     #[arg(long)]
@@ -172,6 +167,13 @@ fn run_migrate(args: MigrateArgs) {
         None => None,
     };
 
+    let report_format = args.report_format.unwrap_or_else(|| {
+        report
+            .as_deref()
+            .map(migrate::ReportFormat::from_path)
+            .unwrap_or(migrate::ReportFormat::Csv)
+    });
+
     let options = migrate::Options {
         root,
         apply: args.apply,
@@ -181,7 +183,7 @@ fn run_migrate(args: MigrateArgs) {
         excludes,
         format: args.format,
         report,
-        report_format: args.report_format,
+        report_format,
     };
 
     let stdout = std::io::stdout();
@@ -401,8 +403,24 @@ mod tests {
                 assert_eq!(migrate_args.report.as_deref(), Some("plan.json"));
                 assert_eq!(
                     migrate_args.report_format,
-                    super::migrate::ReportFormat::Json
+                    Some(super::migrate::ReportFormat::Json)
                 );
+            }
+            Command::Clone(_) => panic!("expected migrate"),
+        }
+    }
+
+    #[test]
+    fn test_report_format_can_be_inferred() {
+        use super::{Cli, Command};
+        use clap::Parser;
+
+        let cli = Cli::parse_from(["git-mirror", "migrate", "--report", "plan.csv"]);
+
+        match cli.command {
+            Command::Migrate(migrate_args) => {
+                assert_eq!(migrate_args.report.as_deref(), Some("plan.csv"));
+                assert_eq!(migrate_args.report_format, None);
             }
             Command::Clone(_) => panic!("expected migrate"),
         }

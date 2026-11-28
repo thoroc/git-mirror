@@ -186,8 +186,10 @@ Options:
   `status`, `current`, `origin`, `target` and `detail` columns. In TSV mode the
   summary goes to stderr, so stdout stays machine-readable.
 - `--report <FILE>` - Also write a report to `FILE` (parent directories are created).
-- `--report-format text|tsv|json` - Report format (default: `tsv`). The report is
-  independent of the console `--format`.
+  The format is inferred from the extension: `.csv` (default), `.tsv`/`.tab`,
+  `.json`, `.md`/`.markdown` or `.txt`/`.text`.
+- `--report-format csv|tsv|json|markdown|text` - Override the inferred report
+  format. The report is independent of the console `--format`.
 - `--include-nested` - Also scan inside repositories for nested repositories.
   This includes vendored clones, so review the dry run before applying.
 - `--force` - Move repositories that have linked worktrees (those worktrees will break).
@@ -211,13 +213,15 @@ Or keep the human-readable console output and write a machine-readable report
 alongside it:
 
 ```sh
-git-mirror migrate --report plan.tsv                      # TSV report
-git-mirror migrate --report plan.json --report-format json # JSON report
+git-mirror migrate --report plan.csv                         # CSV (default)
+git-mirror migrate --report plan.md                          # Markdown table + summary
+git-mirror migrate --report plan.json                        # JSON
+git-mirror migrate --report plan.tsv --report-format tsv     # explicit override
 ```
 
-The TSV report always has the columns `status`, `current`, `origin`, `target`
+CSV and TSV reports have the columns `status`, `current`, `origin`, `target`
 and `detail`. The JSON report wraps the same data with a `summary` object and a
-`schema_version`.
+`schema_version`. Markdown writes the same table followed by a summary section.
 
 Example rows (`detail` is empty for plain moves):
 

@@ -31,19 +31,44 @@ impl std::fmt::Display for Format {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
 pub enum ReportFormat {
-    Text,
+    #[default]
+    Csv,
     Tsv,
     Json,
+    Markdown,
+    Text,
+}
+
+impl ReportFormat {
+    /// Infer the report format from a file extension. Unknown or missing
+    /// extensions fall back to CSV.
+    pub fn from_path(path: &Path) -> Self {
+        let extension = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_ascii_lowercase());
+
+        match extension.as_deref() {
+            Some("csv") => ReportFormat::Csv,
+            Some("tsv") | Some("tab") => ReportFormat::Tsv,
+            Some("json") => ReportFormat::Json,
+            Some("md") | Some("markdown") => ReportFormat::Markdown,
+            Some("txt") | Some("text") => ReportFormat::Text,
+            _ => ReportFormat::Csv,
+        }
+    }
 }
 
 impl std::fmt::Display for ReportFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            ReportFormat::Text => "text",
+            ReportFormat::Csv => "csv",
             ReportFormat::Tsv => "tsv",
             ReportFormat::Json => "json",
+            ReportFormat::Markdown => "markdown",
+            ReportFormat::Text => "text",
         })
     }
 }
@@ -432,6 +457,62 @@ fn tsv_row(entry: &Entry) -> String {
     )
 }
 
+fn csv_field(value: &str) -> String {
+    if value.contains([',', '"', '\n', '\r']) {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_string()
+    }
+}
+
+fn csv_row(entry: &Entry) -> String {
+    let current = entry.current.display().to_string();
+    let target = entry
+        .target
+        .as_ref()
+        .map(|path| path.display().to_string())
+        .unwrap_or_default();
+
+    [
+        entry.status.as_str(),
+        current.as_str(),
+        entry.origin.as_deref().unwrap_or(""),
+        target.as_str(),
+        entry.detail.as_deref().unwrap_or(""),
+    ]
+    .iter()
+    .copied()
+    .map(csv_field)
+    .collect::<Vec<_>>()
+    .join(",")
+}
+
+fn markdown_field(value: &str) -> String {
+    value
+        .replace('\\', "\\\\")
+        .replace('|', "\\|")
+        .replace('\n', "<br>")
+        .replace('\r', "")
+}
+
+fn markdown_row(entry: &Entry) -> String {
+    let current = entry.current.display().to_string();
+    let target = entry
+        .target
+        .as_ref()
+        .map(|path| path.display().to_string())
+        .unwrap_or_default();
+
+    format!(
+        "| {} | {} | {} | {} | {} |",
+        markdown_field(entry.status.as_str()),
+        markdown_field(&current),
+        markdown_field(entry.origin.as_deref().unwrap_or("")),
+        markdown_field(&target),
+        markdown_field(entry.detail.as_deref().unwrap_or(""))
+    )
+}
+
 fn emit(entry: &Entry, format: Format, color: bool, out: &mut dyn Write) -> Result<()> {
     if format == Format::Tsv {
         writeln!(out, "{}", tsv_row(entry))?;
@@ -534,6 +615,12 @@ fn write_report(
             }
             print_summary(summary, opts.apply, &mut file)?;
         }
+        ReportFormat::Csv => {
+            writeln!(file, "status,current,origin,target,detail")?;
+            for entry in entries {
+                writeln!(file, "{}", csv_row(entry))?;
+            }
+        }
         ReportFormat::Tsv => {
             writeln!(file, "status\tcurrent\torigin\ttarget\tdetail")?;
             for entry in entries {
@@ -541,6 +628,48 @@ fn write_report(
             }
         }
         ReportFormat::Json => write_json_report(&mut file, entries, summary, opts)?,
+        ReportFormat::Markdown => {
+            writeln!(file, "| Status | Current | Origin | Target | Detail |")?;
+            writeln!(file, "| --- | --- | --- | --- | --- |")?;
+            for entry in entries {
+                writeln!(file, "{}", markdown_row(entry))?;
+            }
+            write_markdown_summary(&mut file, summary, opts.apply)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn write_markdown_summary<W: Write>(out: &mut W, summary: &Summary, apply: bool) -> Result<()> {
+    writeln!(out, "\n## Summary\n")?;
+
+    if apply {
+        writeln!(out, "- **Moved:** {}", summary.moved)?;
+    } else {
+        writeln!(
+            out,
+            "- **Dry run:** {} repo(s) would move. Re-run with `--apply` to perform the moves.",
+            summary.planned
+        )?;
+    }
+
+    writeln!(out, "- **Already in place:** {}", summary.already)?;
+    writeln!(
+        out,
+        "- **Skipped:** {} no origin, {} unsupported remote, {} excluded, {} conflicts, {} duplicates, {} linked worktrees, {} unparsable, {} root repo",
+        summary.no_origin,
+        summary.unsupported,
+        summary.excluded,
+        summary.conflicts,
+        summary.duplicates,
+        summary.worktrees,
+        summary.unparsable,
+        summary.root
+    )?;
+
+    if summary.failed > 0 {
+        writeln!(out, "- **Failed:** {}", summary.failed)?;
     }
 
     Ok(())
@@ -775,6 +904,21 @@ mod tests {
         assert!(tsv_text.contains("move\t"));
         assert!(tsv_text.contains("duplicate\t"));
 
+        let csv = root.join("report.csv");
+        write_report(&csv, ReportFormat::Csv, &entries, &summary, &opts).expect("csv report");
+        let csv_text = fs::read_to_string(&csv).expect("read csv");
+        assert!(csv_text.starts_with("status,current,origin,target,detail\n"));
+        assert!(csv_text.contains("move,"));
+        assert!(csv_text.contains("duplicate,"));
+
+        let markdown = root.join("report.md");
+        write_report(&markdown, ReportFormat::Markdown, &entries, &summary, &opts)
+            .expect("markdown report");
+        let markdown_text = fs::read_to_string(&markdown).expect("read markdown");
+        assert!(markdown_text.starts_with("| Status | Current | Origin | Target | Detail |\n"));
+        assert!(markdown_text.contains("## Summary"));
+        assert!(markdown_text.contains("**Dry run:** 1 repo(s) would move."));
+
         let json = root.join("report.json");
         write_report(&json, ReportFormat::Json, &entries, &summary, &opts).expect("json report");
         let json_text = fs::read_to_string(&json).expect("read json");
@@ -798,6 +942,64 @@ mod tests {
             super::json_string("a\"b\\c\n"),
             "\"a\\\"b\\\\c\\n\"".to_string()
         );
+    }
+
+    #[test]
+    fn test_report_format_from_path() {
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan.csv")),
+            ReportFormat::Csv
+        );
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan.CSV")),
+            ReportFormat::Csv
+        );
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan.tsv")),
+            ReportFormat::Tsv
+        );
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan.tab")),
+            ReportFormat::Tsv
+        );
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan.json")),
+            ReportFormat::Json
+        );
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan.md")),
+            ReportFormat::Markdown
+        );
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan.markdown")),
+            ReportFormat::Markdown
+        );
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan.txt")),
+            ReportFormat::Text
+        );
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan")),
+            ReportFormat::Csv
+        );
+        assert_eq!(
+            ReportFormat::from_path(Path::new("plan.unknown")),
+            ReportFormat::Csv
+        );
+    }
+
+    #[test]
+    fn test_csv_field_quotes() {
+        assert_eq!(super::csv_field("plain"), "plain");
+        assert_eq!(super::csv_field("a,b"), "\"a,b\"");
+        assert_eq!(super::csv_field("a\"b"), "\"a\"\"b\"");
+        assert_eq!(super::csv_field("a\nb"), "\"a\nb\"");
+    }
+
+    #[test]
+    fn test_markdown_field_escapes() {
+        assert_eq!(super::markdown_field("a|b"), "a\\|b");
+        assert_eq!(super::markdown_field("a\nb"), "a<br>b");
     }
 
     #[test]
