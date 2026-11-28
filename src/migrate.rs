@@ -31,6 +31,23 @@ impl std::fmt::Display for Format {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+pub enum ReportFormat {
+    Text,
+    Tsv,
+    Json,
+}
+
+impl std::fmt::Display for ReportFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            ReportFormat::Text => "text",
+            ReportFormat::Tsv => "tsv",
+            ReportFormat::Json => "json",
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Status {
     Move,
@@ -44,6 +61,7 @@ pub enum Status {
     Conflict,
     Worktree,
     Unparsable,
+    Failed,
     Root,
 }
 
@@ -61,6 +79,7 @@ impl Status {
             Status::Conflict => "conflict",
             Status::Worktree => "worktree",
             Status::Unparsable => "unparsable",
+            Status::Failed => "failed",
             Status::Root => "root",
         }
     }
@@ -104,6 +123,7 @@ impl Summary {
             Status::Collision | Status::Conflict => self.conflicts += 1,
             Status::Worktree => self.worktrees += 1,
             Status::Unparsable => self.unparsable += 1,
+            Status::Failed => self.failed += 1,
             Status::Root => self.root += 1,
         }
     }
@@ -117,6 +137,8 @@ pub struct Options {
     pub full_host: bool,
     pub excludes: Vec<PathBuf>,
     pub format: Format,
+    pub report: Option<PathBuf>,
+    pub report_format: ReportFormat,
 }
 
 /// Classify every repository under the root, optionally moving the ones that
@@ -127,9 +149,10 @@ pub fn run(opts: &Options, out: &mut dyn Write, err: &mut dyn Write) -> Result<S
     let repos = find_repos(&opts.root, opts.include_nested)?;
     let mut summary = Summary::default();
     let mut claimed: HashMap<PathBuf, (String, PathBuf)> = HashMap::new();
+    let mut entries = Vec::new();
 
     if opts.format == Format::Tsv {
-        writeln!(out, "status\tcurrent\torigin\ttarget")?;
+        writeln!(out, "status\tcurrent\torigin\ttarget\tdetail")?;
     }
 
     for current in repos {
@@ -139,19 +162,14 @@ pub fn run(opts: &Options, out: &mut dyn Write, err: &mut dyn Write) -> Result<S
             match apply_move(&entry, &opts.root) {
                 Ok(()) => entry.status = Status::Moved,
                 Err(error) => {
-                    summary.failed += 1;
-                    let target = entry
-                        .target
-                        .as_ref()
-                        .map(|path| path.display().to_string())
-                        .unwrap_or_default();
-                    writeln!(
-                        err,
-                        "{} {} -> {}: {error:#}",
-                        paint("FAIL", RED, color),
-                        entry.current.display(),
-                        target
-                    )?;
+                    entry.status = Status::Failed;
+                    entry.detail = Some(format!("{error:#}"));
+                    summary.record(entry.status);
+                    if opts.format == Format::Tsv {
+                        emit(&entry, opts.format, color, out)?;
+                    }
+                    writeln!(err, "{}", text_line(&entry, color))?;
+                    entries.push(entry);
                     continue;
                 }
             }
@@ -159,12 +177,17 @@ pub fn run(opts: &Options, out: &mut dyn Write, err: &mut dyn Write) -> Result<S
 
         summary.record(entry.status);
         emit(&entry, opts.format, color, out)?;
+        entries.push(entry);
     }
 
     if opts.format == Format::Tsv {
         print_summary(&summary, opts.apply, err)?;
     } else {
         print_summary(&summary, opts.apply, out)?;
+    }
+
+    if let Some(report) = &opts.report {
+        write_report(report, opts.report_format, &entries, &summary, opts)?;
     }
 
     Ok(summary)
@@ -385,20 +408,33 @@ fn paint(text: &str, code: &str, enabled: bool) -> String {
     }
 }
 
+fn tsv_field(value: &str) -> String {
+    value
+        .replace('\t', "\\t")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+}
+
+fn tsv_row(entry: &Entry) -> String {
+    let target = entry
+        .target
+        .as_ref()
+        .map(|path| path.display().to_string())
+        .unwrap_or_default();
+
+    format!(
+        "{}\t{}\t{}\t{}\t{}",
+        entry.status.as_str(),
+        tsv_field(&entry.current.display().to_string()),
+        tsv_field(entry.origin.as_deref().unwrap_or("")),
+        tsv_field(&target),
+        tsv_field(entry.detail.as_deref().unwrap_or(""))
+    )
+}
+
 fn emit(entry: &Entry, format: Format, color: bool, out: &mut dyn Write) -> Result<()> {
     if format == Format::Tsv {
-        writeln!(
-            out,
-            "{}\t{}\t{}\t{}",
-            entry.status.as_str(),
-            entry.current.display(),
-            entry.origin.as_deref().unwrap_or(""),
-            entry
-                .target
-                .as_ref()
-                .map(|path| path.display().to_string())
-                .unwrap_or_default()
-        )?;
+        writeln!(out, "{}", tsv_row(entry))?;
     } else {
         writeln!(out, "{}", text_line(entry, color))?;
     }
@@ -433,6 +469,10 @@ fn text_line(entry: &Entry, color: bool) -> String {
         Status::Conflict => format!("{skip} target already exists{detail}: {target}"),
         Status::Worktree => format!("{skip} linked worktrees present: {current}"),
         Status::Unparsable => format!("{skip} unparsable origin ({origin}): {current}"),
+        Status::Failed => format!(
+            "{} {current} -> {target}: {detail}",
+            paint("FAIL", RED, color)
+        ),
     }
 }
 
@@ -470,9 +510,143 @@ fn print_summary(summary: &Summary, apply: bool, out: &mut dyn Write) -> Result<
     Ok(())
 }
 
+fn write_report(
+    path: &Path,
+    format: ReportFormat,
+    entries: &[Entry],
+    summary: &Summary,
+    opts: &Options,
+) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            stdfs::create_dir_all(parent)
+                .with_context(|| format!("cannot create {}", parent.display()))?;
+        }
+    }
+
+    let mut file = stdfs::File::create(path)
+        .with_context(|| format!("cannot create report {}", path.display()))?;
+
+    match format {
+        ReportFormat::Text => {
+            for entry in entries {
+                writeln!(file, "{}", text_line(entry, false))?;
+            }
+            print_summary(summary, opts.apply, &mut file)?;
+        }
+        ReportFormat::Tsv => {
+            writeln!(file, "status\tcurrent\torigin\ttarget\tdetail")?;
+            for entry in entries {
+                writeln!(file, "{}", tsv_row(entry))?;
+            }
+        }
+        ReportFormat::Json => write_json_report(&mut file, entries, summary, opts)?,
+    }
+
+    Ok(())
+}
+
+fn json_string(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len() + 2);
+    escaped.push('"');
+
+    for character in value.chars() {
+        match character {
+            '"' => escaped.push_str("\\\""),
+            '\\' => escaped.push_str("\\\\"),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            c if (c as u32) < 0x20 => escaped.push_str(&format!("\\u{:04x}", c as u32)),
+            c => escaped.push(c),
+        }
+    }
+
+    escaped.push('"');
+    escaped
+}
+
+fn json_optional(value: Option<&str>) -> String {
+    value.map(json_string).unwrap_or_else(|| "null".to_string())
+}
+
+fn write_json_report<W: Write>(
+    out: &mut W,
+    entries: &[Entry],
+    summary: &Summary,
+    opts: &Options,
+) -> Result<()> {
+    writeln!(out, "{{")?;
+    writeln!(out, "  \"schema_version\": 1,")?;
+    writeln!(
+        out,
+        "  \"root\": {},",
+        json_string(&opts.root.display().to_string())
+    )?;
+    writeln!(out, "  \"apply\": {},", opts.apply)?;
+    writeln!(out, "  \"summary\": {{")?;
+    writeln!(out, "    \"moved\": {},", summary.moved)?;
+    writeln!(out, "    \"planned\": {},", summary.planned)?;
+    writeln!(out, "    \"already\": {},", summary.already)?;
+    writeln!(out, "    \"no_origin\": {},", summary.no_origin)?;
+    writeln!(out, "    \"unsupported\": {},", summary.unsupported)?;
+    writeln!(out, "    \"excluded\": {},", summary.excluded)?;
+    writeln!(out, "    \"conflicts\": {},", summary.conflicts)?;
+    writeln!(out, "    \"duplicates\": {},", summary.duplicates)?;
+    writeln!(out, "    \"worktrees\": {},", summary.worktrees)?;
+    writeln!(out, "    \"unparsable\": {},", summary.unparsable)?;
+    writeln!(out, "    \"root_repos\": {},", summary.root)?;
+    writeln!(out, "    \"failed\": {}", summary.failed)?;
+    writeln!(out, "  }},")?;
+    writeln!(out, "  \"repositories\": [")?;
+
+    for (index, entry) in entries.iter().enumerate() {
+        let target = entry.target.as_ref().map(|path| path.display().to_string());
+
+        writeln!(out, "    {{")?;
+        writeln!(
+            out,
+            "      \"status\": {},",
+            json_string(entry.status.as_str())
+        )?;
+        writeln!(
+            out,
+            "      \"current\": {},",
+            json_string(&entry.current.display().to_string())
+        )?;
+        writeln!(
+            out,
+            "      \"origin\": {},",
+            json_optional(entry.origin.as_deref())
+        )?;
+        writeln!(
+            out,
+            "      \"target\": {},",
+            json_optional(target.as_deref())
+        )?;
+        writeln!(
+            out,
+            "      \"detail\": {}",
+            json_optional(entry.detail.as_deref())
+        )?;
+        writeln!(
+            out,
+            "    }}{}",
+            if index + 1 == entries.len() { "" } else { "," }
+        )?;
+    }
+
+    writeln!(out, "  ]")?;
+    writeln!(out, "}}")?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{find_repos, is_excluded, run, Format, Options, Status};
+    use super::{
+        find_repos, is_excluded, run, write_report, Entry, Format, Options, ReportFormat, Status,
+        Summary,
+    };
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::process::Command;
@@ -526,6 +700,8 @@ mod tests {
             full_host: false,
             excludes: Vec::new(),
             format: Format::Tsv,
+            report: None,
+            report_format: ReportFormat::Tsv,
         }
     }
 
@@ -564,6 +740,64 @@ mod tests {
         assert_eq!(repos, vec![parent.clone()]);
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_write_report_formats() {
+        let root = unique_root("report");
+        let entries = vec![
+            Entry {
+                status: Status::Move,
+                current: root.join("old/repo"),
+                origin: Some("git@github.com:org/repo.git".to_string()),
+                target: Some(root.join("github/org/repo")),
+                detail: None,
+            },
+            Entry {
+                status: Status::Duplicate,
+                current: root.join("old/dup"),
+                origin: Some("git@github.com:org/repo.git".to_string()),
+                target: Some(root.join("github/org/repo")),
+                detail: Some(root.join("old/repo").display().to_string()),
+            },
+        ];
+        let summary = Summary {
+            planned: 1,
+            duplicates: 1,
+            ..Summary::default()
+        };
+        let opts = options(&root);
+
+        let tsv = root.join("report.tsv");
+        write_report(&tsv, ReportFormat::Tsv, &entries, &summary, &opts).expect("tsv report");
+        let tsv_text = fs::read_to_string(&tsv).expect("read tsv");
+        assert!(tsv_text.starts_with("status\tcurrent\torigin\ttarget\tdetail\n"));
+        assert!(tsv_text.contains("move\t"));
+        assert!(tsv_text.contains("duplicate\t"));
+
+        let json = root.join("report.json");
+        write_report(&json, ReportFormat::Json, &entries, &summary, &opts).expect("json report");
+        let json_text = fs::read_to_string(&json).expect("read json");
+        assert!(json_text.contains("\"schema_version\": 1"));
+        assert!(json_text.contains("\"planned\": 1"));
+        assert!(json_text.contains("\"status\": \"move\""));
+        assert!(json_text.contains("\"detail\": null"));
+
+        let text = root.join("report.txt");
+        write_report(&text, ReportFormat::Text, &entries, &summary, &opts).expect("text report");
+        let text_text = fs::read_to_string(&text).expect("read text");
+        assert!(text_text.contains("PLAN"));
+        assert!(text_text.contains("Dry run: 1 repo(s) would move."));
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn test_json_string_escapes() {
+        assert_eq!(
+            super::json_string("a\"b\\c\n"),
+            "\"a\\\"b\\\\c\\n\"".to_string()
+        );
     }
 
     #[test]
@@ -613,15 +847,22 @@ mod tests {
         );
 
         // Dry run: nothing moves.
+        let report = root.join("plan.tsv");
+        let mut dry = options(&root);
+        dry.report = Some(report.clone());
         let mut out = Vec::new();
         let mut err = Vec::new();
-        let summary = run(&options(&root), &mut out, &mut err).expect("dry run");
+        let summary = run(&dry, &mut out, &mut err).expect("dry run");
         assert_eq!(summary.planned, 5);
         assert_eq!(summary.duplicates, 1);
         assert_eq!(summary.no_origin, 1);
         assert_eq!(summary.conflicts, 1);
         assert_eq!(summary.already, 1);
         assert!(root.join("old/a/repo1").is_dir());
+
+        let plan = fs::read_to_string(&report).expect("read report");
+        assert!(plan.starts_with("status\tcurrent\torigin\ttarget\tdetail\n"));
+        assert!(plan.lines().any(|line| line.starts_with("move\t")));
 
         let rows = tsv_rows(&out);
         let row = |path: &str| {

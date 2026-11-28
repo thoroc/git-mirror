@@ -73,6 +73,19 @@ struct MigrateArgs {
     #[arg(long, value_enum, default_value_t = migrate::Format::Text)]
     format: migrate::Format,
 
+    /// Write a report to this file in addition to console output
+    #[arg(long, value_name = "FILE")]
+    report: Option<String>,
+
+    /// Report format: text, tsv or json
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = migrate::ReportFormat::Tsv,
+        requires = "report"
+    )]
+    report_format: migrate::ReportFormat,
+
     /// Also scan inside repositories for nested repositories (including vendored clones)
     #[arg(long)]
     include_nested: bool,
@@ -148,6 +161,17 @@ fn run_migrate(args: MigrateArgs) {
         }
     }
 
+    let report = match args.report {
+        Some(path) => match fs::expand_root(&path) {
+            Ok(path) => Some(path),
+            Err(error) => {
+                eprintln!("Error resolving report path {path}: {error}");
+                process::exit(2);
+            }
+        },
+        None => None,
+    };
+
     let options = migrate::Options {
         root,
         apply: args.apply,
@@ -156,6 +180,8 @@ fn run_migrate(args: MigrateArgs) {
         full_host: args.full_host,
         excludes,
         format: args.format,
+        report,
+        report_format: args.report_format,
     };
 
     let stdout = std::io::stdout();
@@ -354,5 +380,40 @@ mod tests {
     #[test]
     fn test_no_args_is_untouched() {
         assert_eq!(args(&["git-mirror"]), vec!["git-mirror"]);
+    }
+
+    #[test]
+    fn test_migrate_report_args() {
+        use super::{Cli, Command};
+        use clap::Parser;
+
+        let cli = Cli::parse_from([
+            "git-mirror",
+            "migrate",
+            "--report",
+            "plan.json",
+            "--report-format",
+            "json",
+        ]);
+
+        match cli.command {
+            Command::Migrate(migrate_args) => {
+                assert_eq!(migrate_args.report.as_deref(), Some("plan.json"));
+                assert_eq!(
+                    migrate_args.report_format,
+                    super::migrate::ReportFormat::Json
+                );
+            }
+            Command::Clone(_) => panic!("expected migrate"),
+        }
+    }
+
+    #[test]
+    fn test_report_format_requires_report() {
+        use super::Cli;
+        use clap::Parser;
+
+        let result = Cli::try_parse_from(["git-mirror", "migrate", "--report-format", "json"]);
+        assert!(result.is_err());
     }
 }

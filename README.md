@@ -183,8 +183,11 @@ Options:
 - `-r, --root <ROOT>` - Projects root to scan (default: `~/Projects`).
 - `--apply` - Perform the moves (default is a dry run).
 - `--format text|tsv` - Human-readable output or a TSV table with
-  `status`, `current`, `origin` and `target` columns. In TSV mode the summary
-  goes to stderr, so stdout stays machine-readable.
+  `status`, `current`, `origin`, `target` and `detail` columns. In TSV mode the
+  summary goes to stderr, so stdout stays machine-readable.
+- `--report <FILE>` - Also write a report to `FILE` (parent directories are created).
+- `--report-format text|tsv|json` - Report format (default: `tsv`). The report is
+  independent of the console `--format`.
 - `--include-nested` - Also scan inside repositories for nested repositories.
   This includes vendored clones, so review the dry run before applying.
 - `--force` - Move repositories that have linked worktrees (those worktrees will break).
@@ -204,12 +207,24 @@ git-mirror migrate --format tsv > plan.tsv
 git-mirror migrate --apply
 ```
 
-Example rows:
+Or keep the human-readable console output and write a machine-readable report
+alongside it:
+
+```sh
+git-mirror migrate --report plan.tsv                      # TSV report
+git-mirror migrate --report plan.json --report-format json # JSON report
+```
+
+The TSV report always has the columns `status`, `current`, `origin`, `target`
+and `detail`. The JSON report wraps the same data with a `summary` object and a
+`schema_version`.
+
+Example rows (`detail` is empty for plain moves):
 
 ```tsv
-status	current	origin	target
-move	/home/me/Projects/old/error-queue-scheduler	git@bitbucket.org:pplcs/error-queue-scheduler.git	/home/me/Projects/bitbucket/pplcs/error-queue-scheduler
-move	/home/me/Projects/old/api-gateway	ssh://git@bitbucket.uk.example.com:2222/awstl/api-gateway.git	/home/me/Projects/bitbucket/awstl/api-gateway
+status	current	origin	target	detail
+duplicate	/home/me/Projects/old/error-queue-scheduler-copy	git@bitbucket.org:pplcs/error-queue-scheduler.git	/home/me/Projects/bitbucket/pplcs/error-queue-scheduler	/home/me/Projects/old/error-queue-scheduler
+conflict	/home/me/Projects/old/api-gateway	ssh://git@bitbucket.uk.example.com:2222/awstl/api-gateway.git	/home/me/Projects/bitbucket/awstl/api-gateway	 with the same remote
 ```
 
 ### Host mapping
