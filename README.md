@@ -14,7 +14,8 @@ be used to print commands for updating or changing directory instead of cloning.
 Organizing cloned repositories consistently is tedious. git-mirror automates this by:
 
 - **Smart directory structure** - Mirrors the remote URL structure locally (`~/Projects/github/owner/repo`)
-- **Works with any Git host** - GitHub, GitLab, Bitbucket, or self-hosted instances
+- **Works with any Git host** - GitHub, GitLab, Bitbucket, self-hosted instances, and other forges
+- **Migrate existing clones** - Reorganise an existing projects tree from each repository's `origin` remote
 - **Shell integration** - Print `cd` commands to jump straight into cloned repos
 - **VS Code ready** - Optionally open repos in VS Code immediately after cloning
 - **Fast and lightweight** - Written in Rust for maximum performance
@@ -128,6 +129,9 @@ eval "$(git-mirror git@github.com:owner/repo.git --print-cd)"
 
 ## Usage
 
+`clone` is the default command, so `git-mirror <repo>` and
+`git-mirror clone <repo>` are equivalent.
+
 Basic CLI options:
 
 - `-r, --root <ROOT>`     - Root directory where projects are stored (default: `~/Projects`).
@@ -163,6 +167,70 @@ Notes:
   ```
 
 - If you want only the `cd` (without opening an editor), use `--print-cd`.
+
+## Migrating existing clones
+
+If repositories already live under `~/Projects` in an ad-hoc layout, `git-mirror migrate`
+moves each one to the path its `origin` remote implies:
+
+```sh
+git-mirror migrate            # dry run: show the plan, change nothing
+git-mirror migrate --apply    # perform the moves
+```
+
+Options:
+
+- `-r, --root <ROOT>` - Projects root to scan (default: `~/Projects`).
+- `--apply` - Perform the moves (default is a dry run).
+- `--format text|tsv` - Human-readable output or a TSV table with
+  `status`, `current`, `origin` and `target` columns. In TSV mode the summary
+  goes to stderr, so stdout stays machine-readable.
+- `--include-nested` - Also scan inside repositories for nested repositories.
+  This includes vendored clones, so review the dry run before applying.
+- `--force` - Move repositories that have linked worktrees (those worktrees will break).
+- `--exclude <PREFIX>` - Skip repositories at or under a path prefix (repeatable).
+- `--full-host` - Use the full host domain in the target path.
+
+Repositories are processed deepest-first. Existing targets are never overwritten:
+a target that already exists is reported as a conflict and the source is left in
+place. Multiple checkouts of the same remote are reported as duplicates and only
+the first one is kept.
+
+Typical workflow:
+
+```sh
+git-mirror migrate --format tsv > plan.tsv
+# review plan.tsv, then:
+git-mirror migrate --apply
+```
+
+Example rows:
+
+```tsv
+status	current	origin	target
+move	/home/me/Projects/old/error-queue-scheduler	git@bitbucket.org:pplcs/error-queue-scheduler.git	/home/me/Projects/bitbucket/pplcs/error-queue-scheduler
+move	/home/me/Projects/old/api-gateway	ssh://git@bitbucket.uk.example.com:2222/awstl/api-gateway.git	/home/me/Projects/bitbucket/awstl/api-gateway
+```
+
+### Host mapping
+
+The first path segment is derived from the remote host:
+
+| Remote host | Local directory |
+| --- | --- |
+| `github.com`, `*.github.com` | `github` |
+| `gitlab.com`, `*.gitlab.com` | `gitlab` |
+| `bitbucket.org`, `*.bitbucket.org` | `bitbucket` |
+| any host containing `bitbucket` | `bitbucket` |
+| any host containing `gitlab` | `gitlab` |
+| any host containing `github` | `github` |
+| `go.googlesource.com` | `googlesource` |
+| `gopkg.in` | `gopkg` |
+| `phabricator.*` | `phabricator` |
+| anything else | first DNS label (`git.example.com` -> `git`) |
+
+Use `--full-host` to keep the full domain instead, for example
+`~/Projects/bitbucket.uk.example.com/qa/repo`.
 
 ## Shell helpers
 
@@ -206,7 +274,7 @@ function Git-Mirror-Cd {
 ## Notes & Migration
 
 - This repo previously contained a Deno/TypeScript implementation, which has been replaced with the current Rust implementation.
-- The Rust CLI implements core features: host parsing, local path construction, `git clone`, VS Code integration, and interactive prompts.
+- The Rust CLI implements host parsing, local path construction, `git clone`, migration, VS Code integration, and interactive prompts.
 
 ### Migration notes (host-name change)
 
@@ -223,12 +291,9 @@ git-mirror --full-host git@github.com:owner/repo.git
 # => ~/Projects/github.com/owner/repo
 ```
 
-If you are migrating from an earlier implementation that used the full domain
-in local paths, consider running a one-time move of your directories or cloning
-with `--full-host` to keep the old layout.
-
-If you want me to add an automatic migration helper (move directories and create
-symlinks), say so and I can implement it.
+If you already have clones in a different layout, use
+[`git-mirror migrate`](#migrating-existing-clones) to move them into place
+instead of re-cloning them.
 
 ---
 

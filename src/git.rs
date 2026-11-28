@@ -1,9 +1,22 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::OnceLock;
 use which::which;
+
+/// Resolve (and cache) the git executable once per process.
+fn git_binary() -> Result<&'static Path> {
+    static GIT: OnceLock<PathBuf> = OnceLock::new();
+
+    if let Some(path) = GIT.get() {
+        return Ok(path.as_path());
+    }
+
+    let path = which("git").context("git executable not found in PATH")?;
+    Ok(GIT.get_or_init(|| path).as_path())
+}
 
 fn clone_repo_with_writer<W: Write>(
     repo: &str,
@@ -11,7 +24,7 @@ fn clone_repo_with_writer<W: Write>(
     dry_run: bool,
     writer: &mut W,
 ) -> Result<()> {
-    let git = which("git").context("git executable not found in PATH")?;
+    let git = git_binary()?;
 
     if dry_run {
         writeln!(
@@ -57,6 +70,29 @@ pub fn repo_exists(local_path: &Path) -> bool {
     local_path.exists() && local_path.join(".git").is_dir()
 }
 
+/// Return the `origin` remote URL for a repository, if one is configured.
+pub fn origin_url(repo_path: &Path) -> Result<Option<String>> {
+    let git = git_binary()?;
+
+    let output = Command::new(git)
+        .arg("-C")
+        .arg(repo_path)
+        .args(["remote", "get-url", "origin"])
+        .output()
+        .context("failed to run git remote get-url")?;
+
+    if !output.status.success() {
+        return Ok(None);
+    }
+
+    let url = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if url.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(url))
+    }
+}
+
 /// Build the commands to show when a repo already exists locally.
 /// If `print_cd` is true, return only the `cd` command, otherwise return `cd` + `git -C ... pull --ff-only`.
 #[cfg(test)]
@@ -72,7 +108,7 @@ fn existing_repo_commands(local_path: &Path, print_cd: bool) -> String {
 
 /// Fetch an existing repository using `git -C <path> fetch --all --prune`
 pub fn fetch_repo(local_path: &Path, dry_run: bool) -> Result<()> {
-    let git = which("git").context("git executable not found in PATH")?;
+    let git = git_binary()?;
 
     if dry_run {
         println!(
