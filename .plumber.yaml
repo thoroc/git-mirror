@@ -5,10 +5,12 @@
 extends: plumber:default
 version: "2.0"
 
-# Example overrides (delete or edit):
-# github:
-#   controls:
-#     githubActionMustComeFromAuthorizedSources:
-#       includePlumberDefaults: true   # keep the curated trusted orgs
-#       trustedGithubActions:
-#         - myorg
+github:
+  controls:
+    githubActionMustComeFromAuthorizedSources:
+      # Keep Plumber's curated list of trusted owners and extend it with the
+      # one third-party action this repo relies on: jdx/mise-action installs
+      # the toolchain from mise.toml (see .github/workflows/kingfisher.yml).
+      includePlumberDefaults: true
+      trustedGithubActions:
+        - jdx/mise-action
