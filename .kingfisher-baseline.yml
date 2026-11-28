@@ -1,30 +1,47 @@
-ExactFindings:
-  matches:
-  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rmeta
-    fingerprint: '3583673144671533681'
-    linenum: 641
-    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
-  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rmeta
-    fingerprint: '12982483814732687615'
-    linenum: 649
-    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
-  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rmeta
-    fingerprint: '13107631496495694518'
-    linenum: 620
-    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
-  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rlib
-    fingerprint: '6595895914350885018'
-    linenum: 774
-    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
-  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rlib
-    fingerprint: '2248700921942852958'
-    linenum: 782
-    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
-  - filepath: ./.git/target/debug/deps/liburl-16e32192accd87d8.rlib
-    fingerprint: '4938815688621001442'
-    linenum: 753
-    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
-  - filepath: ./.git/.opencode/knowledge-base/rust-security-review.md
-    fingerprint: '17519252348742193556'
-    linenum: 236
-    lastupdated: Tue, 11 Aug 2026 11:46:29 +0100
+version: 2
+fingerprint_algorithm: kingfisher-v1
+repositories:
+- id: git://github.com/thoroc/git-mirror
+  findings:
+  - path: .opencode/knowledge-base/rust-security-review.md
+    fingerprint: '10500689135805669069'
+    rule_id: betterleaks.generic-credential-uri
+    line: 19
+    first_seen_at: 2026-11-28T07:43:03.552480+00:00
+    last_updated_at: 2026-11-28T07:43:03.552480+00:00
+  - path: .opencode/knowledge-base/rust-security-review.md
+    fingerprint: '1324422071198515874'
+    rule_id: betterleaks.generic-credential-uri
+    line: 40
+    first_seen_at: 2026-11-28T07:43:03.552480+00:00
+    last_updated_at: 2026-11-28T07:43:03.552480+00:00
+  - path: .opencode/knowledge-base/rust-security-review.md
+    fingerprint: '16436457980218561454'
+    rule_id: betterleaks.generic-credential-uri
+    line: 236
+    first_seen_at: 2026-11-28T07:43:03.552480+00:00
+    last_updated_at: 2026-11-28T07:43:03.552480+00:00
+  - path: src/util.rs
+    fingerprint: '2228275754195325096'
+    rule_id: betterleaks.generic-credential-uri
+    line: 78
+    first_seen_at: 2026-11-28T07:43:03.552480+00:00
+    last_updated_at: 2026-11-28T07:43:03.552480+00:00
+  - path: src/util.rs
+    fingerprint: '13978233364019674970'
+    rule_id: betterleaks.generic-credential-uri
+    line: 111
+    first_seen_at: 2026-11-28T07:43:03.552480+00:00
+    last_updated_at: 2026-11-28T07:43:03.552480+00:00
+  - path: src/util.rs
+    fingerprint: '17193542528367507155'
+    rule_id: betterleaks.generic-credential-uri
+    line: 180
+    first_seen_at: 2026-11-28T07:43:03.552480+00:00
+    last_updated_at: 2026-11-28T07:43:03.552480+00:00
+  - path: src/util.rs
+    fingerprint: '8906795421941321394'
+    rule_id: betterleaks.generic-credential-uri
+    line: 180
+    first_seen_at: 2026-11-28T07:43:03.552480+00:00
+    last_updated_at: 2026-11-28T07:43:03.552480+00:00
