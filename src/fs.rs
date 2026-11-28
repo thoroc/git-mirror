@@ -48,6 +48,21 @@ pub fn build_local_repo_path(root: &str, repo: &str, full_host: bool) -> Result<
     Ok(target_path(&expand_root(root)?, &remote, full_host))
 }
 
+/// Remove now-empty parent directories of `source`, stopping at `root`.
+pub fn prune_empty_parents(source: &Path, root: &Path) {
+    let mut dir = source.parent();
+
+    while let Some(candidate) = dir {
+        if candidate == root {
+            break;
+        }
+        if std::fs::remove_dir(candidate).is_err() {
+            break;
+        }
+        dir = candidate.parent();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{build_local_repo_path, expand_root};

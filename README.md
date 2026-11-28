@@ -195,6 +195,10 @@ Options:
 - `--force` - Move repositories that have linked worktrees (those worktrees will break).
 - `--exclude <PREFIX>` - Skip repositories at or under a path prefix (repeatable).
 - `--keep <PATH>` - Force the keeper checkout for a duplicate group (repeatable).
+- `--duplicates report|consolidate` - Report duplicates (default) or consolidate
+  their unique work into the keeper.
+- `--archive-dir <DIR>` - Where consolidated sources and patches are kept
+  (default: `<root>/.migration-archive`).
 - `--full-host` - Use the full host domain in the target path.
 
 Repositories are processed deepest-first. Existing targets are never overwritten:
@@ -204,6 +208,15 @@ unique commits (not reachable from `origin`), uncommitted tracked work (dirty
 files plus stashes), in-place location, untracked files, branches, last commit
 date and path heuristics. The `detail` column shows those metrics for each
 checkout, and `--keep <PATH>` overrides the choice.
+
+With `--duplicates consolidate --apply`, each duplicate's unique branches are
+fetched into the keeper as `migration/<YYYY-MM-DD>/<slug>/<branch>`; stashes
+become `.../stash-<n>` and a detached HEAD becomes `.../detached-<sha>`. Dirty
+tracked changes are written to `worktree.patch`, untracked files are copied under
+`untracked/`, and the source checkout is moved (not deleted) to
+`<archive-dir>/<date>/<slug>/source`. Refs that are already on `origin` are not
+imported, and nested repositories are left in place. Without `--apply`, the same
+mode only reports what would be imported and archived.
 
 Typical workflow:
 
